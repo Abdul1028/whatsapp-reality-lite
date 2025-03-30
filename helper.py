@@ -14,8 +14,10 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import nltk
-# from pandasai import SmartDataframe
-# from pandasai.llm import OpenAI
+import pandas as pd
+import plotly.express as px
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import ssl
 
 try:
@@ -930,147 +932,6 @@ def calculate_monthly_sentiment_trend(df):
     fig.update_xaxes(type='category')  # Ensure x-axis is treated as categorical
 
     return fig
-
-
-
-
-
-import pandas as pd
-import plotly.express as px
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-
-# def calculate_monthly_sentiment_trends(selected_users, df):
-#     try:
-#         nltk.data.find('vader_lexicon')
-#     except LookupError:
-#         nltk.download('vader_lexicon')
-#
-#     # Initialize the sentiment analyzer outside the function
-#     sid = SentimentIntensityAnalyzer()
-#
-#     # Initialize an empty list to store figures
-#     figures = []
-#
-#     # Filter messages based on selected users
-#     if selected_users == 'Overall':
-#         selected_df = df  # Consider the whole dataframe if 'Overall' is selected
-#     else:
-#         if isinstance(selected_users, str):
-#             selected_users = [selected_users]  # Convert to list if only one user is selected
-#         selected_df = df[df['user'].isin(selected_users)]
-#
-#
-#
-#     # Tokenize and analyze sentiment for each message
-#     sentiment_scores = []
-#     for message in selected_df['message']:
-#         # Get sentiment score for the message
-#         sentiment_score = sid.polarity_scores(message)['compound']
-#         sentiment_scores.append(sentiment_score)
-#
-#     # Add sentiment scores to DataFrame
-#     selected_df['sentiment_score'] = sentiment_scores
-#
-#     # Convert 'date' column to datetime if it's not already
-#     selected_df['date'] = pd.to_datetime(selected_df['date'])
-#
-#     # Group data by month and calculate positivity and negativity percentages
-#     selected_df['month'] = selected_df['date'].dt.to_period('M')
-#     monthly_sentiment = selected_df.groupby(['user', 'month']).agg(
-#         positivity_percentage=('sentiment_score', lambda x: (x > 0).mean() * 100),
-#         negativity_percentage=('sentiment_score', lambda x: (x < 0).mean() * 100)
-#     ).reset_index()
-#
-#     # Convert Period index to string for serialization
-#     monthly_sentiment['month'] = monthly_sentiment['month'].astype(str)
-#
-#     # Plot the trends for all selected users
-#     for user in selected_users:
-#         user_data = monthly_sentiment[monthly_sentiment['user'] == user]
-#
-#         # Plot positive sentiment trend
-#         fig_positive = px.line(user_data, x='month', y='positivity_percentage',
-#                                title=f'Positive Sentiment Trend for {user}',
-#                                labels={'month': 'Month', 'positivity_percentage': 'Positive Percentage'})
-#         fig_positive.update_xaxes(type='category')  # Ensure x-axis is treated as categorical
-#
-#         # Plot negative sentiment trend
-#         fig_negative = px.line(user_data, x='month', y='negativity_percentage',
-#                                title=f'Negative Sentiment Trend for {user}',
-#                                labels={'month': 'Month', 'negativity_percentage': 'Negative Percentage'})
-#         fig_negative.update_xaxes(type='category')  # Ensure x-axis is treated as categorical
-#
-#         figures.append(fig_positive)
-#         figures.append(fig_negative)
-#
-#     return figures
-
-
-# def run_pandas_ai(df,question):
-#     llm = OpenAI(api_token="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")
-#     df = SmartDataframe(df, config={"llm": llm})
-#     a = df.chat(question)
-#
-#     return a
-
-
-## DOESNT WORKS AND WE DONT NEED IT TOO
-# def response_activity(user,df):
-#     df['date'] = pd.to_datetime(df['date'])
-#     # Sort DataFrame by date
-#     df = df.sort_index()
-#
-#     # Initialize counts dictionary to store counts for each time interval
-#     time_intervals = [20, 40, 60, 80, 100, 120]
-#     counts = {interval: 0 for interval in time_intervals}
-#     counts['>120'] = 0
-#
-#     # Filter DataFrame to include only messages sent by the specified user
-#     user_messages = df[df['user'] == user]
-#
-#     # Iterate over each row in the filtered DataFrame
-#     for index, row in user_messages.iterrows():
-#         # Check if the message is a repl
-#         if row['Is reply']:
-#             print("Row columns: ")
-#             print(row,index)
-#             # Find the index of the previous message sent by the same user
-#             previous_index = index - 1
-#             while previous_index >= 0 and df.loc[previous_index, 'user'] != user:
-#                 previous_index -= 1
-#
-#             # If a previous message is found, calculate the time difference
-#             if previous_index >= 0:
-#                 reply_time = (row['date'] - df.loc[previous_index, 'date']).total_seconds()
-#                 # Iterate over time intervals and update counts accordingly
-#                 for interval in time_intervals:
-#                     if reply_time <= interval:
-#                         counts[interval] += 1
-#                         break
-#                 else:
-#                     counts['>120'] += 1
-#
-#     # Return the counts
-#     return counts
-
-
-
-
-
-
-#This are not working work on this!
-
-# # def conversation_starter_graph( df):
-# #     subject_df = df[df['Conv change']].groupby('Subject').count()['Reply time']
-# #     fig = create_narrow_pie_fig(subject_df)
-# #     most_messages_winner = subject_df.index[subject_df.argmax()]
-# #     return fig, most_messages_winner
-#
-
-#
-
-
 
 
 
