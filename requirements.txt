@@ -10,3 +10,4 @@ reportlab
 kaleido
 sentence-transformers>=2.2.2
 textblob
+urlextract
