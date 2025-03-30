@@ -1,0 +1,10 @@
+seaborn
+streamlit
+streamlit-option-menu
+streamlit-lottie
+nltk
+datetime
+plotly
+plotly-express
+reportlab
+kaleido
