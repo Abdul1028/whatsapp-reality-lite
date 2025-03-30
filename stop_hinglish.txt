@@ -4,6 +4,7 @@
 ?
 -
 --
++91
 1
 2
 3
@@ -16,28 +17,6 @@
 0
 a
 aadi
-image omitted
-video omitted
-image
-image image
-image image
- image image
-image image
-
-h
-video
-document
-omitted
-attachments
-attachment
-notiied message
-message quiet
-omitted image
-document omitted
-haa
-image image
-video video
-document document
 aaj
 aap
 aapne
@@ -121,61 +100,12 @@ avum
 aya
 aye
 baad
-areyy
-achha
-koe
-koi
-kyu
-kaise
-kab
-kisliye
-kisse
-kab
-kitne
-video video
-pages document
-docx document
-phir
-meko
-teko
-haa
-haaa
-haaaa
-okay
-okayy
-okayyy
-okayyyy
-okayyyyy
-pdf
-pdf pages
-docx
-docx pages
-document
-documents
 baar
 bad
 bahut
 bana
 banae
-pdf document
- pdf document
- pdf document
-pdf document
-
 banai
-voh
- image image
- image image
-image image
-image image
-
-document
-??
-==
-=
-===
-
-
 banao
 banaya
 banaye

@@ -1,4 +1,5 @@
 /venv
 /exports
-exports/
+exports/charts/
 .env
+.gitignore

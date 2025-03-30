@@ -22,6 +22,7 @@ import ssl
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import re
+import random
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -77,131 +78,330 @@ def most_busy_users(df):
 
     return fig,df
 
-def create_wordcloud(selected_user,df):
-
-    f = open('stop_hinglish.txt', 'r')
-    stop_words = f.read()
-
-    if selected_user != 'Overall':
-        df = df[df['user'] == selected_user]
-
-    temp = df[df    ['user'] != 'group_notification']
-    temp = temp[temp['message'] != '<Media omitted>\n']
-
-    def remove_stop_words(message):
-        y = []
-        for word in message.lower().split():
-            if word not in stop_words:
-                y.append(word)
-        return " ".join(y)
-
-    wc = WordCloud(width=500,height=500,min_font_size=10,background_color='white')
-    temp['message'] = temp['message'].apply(remove_stop_words)
-    df_wc = wc.generate(temp['message'].str.cat(sep=" "))
-    return df_wc
-
-
 from wordcloud import WordCloud,STOPWORDS
 import plotly.graph_objs as go
 from plotly.offline import plot
 from collections import Counter
 
-def plotly_wordcloud(text, stopwords=None):
-    if stopwords is None:
-        stopwords = set(STOPWORDS)
+def load_hinglish_stopwords():
+    """
+    Load Hinglish stopwords from Kaggle or fallback to a basic list
+    """
+    try:
+        import kagglehub
+        # Download latest version
+        path = kagglehub.dataset_download("prxshetty/stop-words-hinglish")
+        
+        # Read the stopwords file
+        with open(f"{path}/stopwords.txt", "r", encoding="utf-8") as f:
+            hinglish_stopwords = set(word.strip() for word in f.readlines())
+        
+        print(f"Loaded {len(hinglish_stopwords)} Hinglish stopwords")
+        return hinglish_stopwords
+        
+    except Exception as e:
+        print(f"Error loading Hinglish stopwords: {e}")
+        # Fallback to basic stopwords
+        basic_stopwords = {
+            'media', 'omitted', 'image', 'video', 'audio', 'sticker', 'gif',
+            'http', 'https', 'www', 'com', 'message', 'deleted', 'ok', 'okay',
+            'yes', 'no', 'hi', 'hello', 'hey', 'hmm', 'haha', 'lol', 'lmao',
+            'thanks', 'thank', 'you', 'the', 'and', 'for', 'this', 'that',
+            'have', 'has', 'had', 'not', 'with', 'from', 'your', 'which',
+            'there', 'their', 'they', 'them', 'then', 'than', 'but', 'also',
+            # Basic Hindi stopwords
+            'hai', 'hain', 'ho', 'ki', 'ka', 'ke', 'ko', 'main', 'aur', 'par',
+            'kya', 'se', 'ne', 'to', 'bhi', 'kuch', 'nahi', 'na', 'ab', 'ye',
+            'yeh', 'woh', 'mein', 'tha', 'thi', 'the', 'raha', 'rahi', 'rahe'
+        }
+        return basic_stopwords
 
-    wc = WordCloud(stopwords=stopwords,
-                   width=500,
-                   height=500,
-                   min_font_size=10,
-                   background_color='white')
-    df_wc = wc.generate(text)
-
-    word_list = []
-    freq_list = []
-    fontsize_list = []
-    position_list = []
-    orientation_list = []
-    color_list = []
-
-    for (word, freq), fontsize, position, orientation, color in wc.layout_:
-        word_list.append(word)
-        freq_list.append(freq)
-        fontsize_list.append(fontsize)
-        position_list.append(position)
-        orientation_list.append(orientation)
-        color_list.append(color)
-
-    # calculate the relative occurrence frequencies
-    max_freq = max(freq_list)
-    # Scale frequencies to range 10-100 instead of 0-100 to ensure minimum size of 10
-    new_freq_list = [10 + (freq / max_freq * 90) for freq in freq_list]
-
-    trace = go.Scatter(x=[pos[0] for pos in position_list],
-                       y=[pos[1] for pos in position_list],
-                       textfont=dict(size=new_freq_list, color=color_list),
-                       hoverinfo='text',
-                       hovertext=['{0} (x: {1:.2f})'.format(w, c) for w, c in zip(word_list, new_freq_list)],
-                       mode='text',
-                       text=word_list
-                       )
-
-    layout = go.Layout(xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-                       yaxis=dict(showgrid=False, showticklabels=False, zeroline=False))
-
-
-
-    fig = go.Figure(data=[trace], layout=layout)
-    fig.write_image("exports/charts/wordcloud.png")
-
-    return fig
+# Load stopwords once at module level
+HINGLISH_STOPWORDS = load_hinglish_stopwords()
 
 def create_plotly_wordcloud(selected_user, df):
-    with open('stop_hinglish.txt', 'r') as f:
-        stop_words = set(f.read().split())
-
+    """
+    Enhanced word cloud with Hinglish stopword handling using local file
+    """
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
-    temp = df[df['user'] != 'group_notification']
-    temp = temp[~temp['message'].isin(['<Media omitted>\n', 'image omitted', 'video omitted'])]
-
-    def remove_stop_words(message):
-        return " ".join(word for word in message.lower().split() if word not in stop_words)
-
-    temp['message'] = temp['message'].apply(remove_stop_words)
-    wordcloud_text = temp['message'].str.cat(sep=" ")
-
-    return plotly_wordcloud(wordcloud_text)
-
-
-def most_common_words(selected_user,df):
-
-    f = open('stop_hinglish.txt','r')
-    stop_words = f.read()
-
-    if selected_user != 'Overall':
-        df = df[df['user'] == selected_user]
-
-    temp = df[df['user'] != 'group_notification']
-    temp = temp[temp['message'] != '<Media omitted>\n']
-
+    # Load stopwords from the local file
+    try:
+        with open('stop_hinglish.txt', 'r', encoding='utf-8') as f:
+            hinglish_stopwords = set(word.strip() for word in f.readlines())
+        print(f"Loaded {len(hinglish_stopwords)} Hinglish stopwords from file")
+    except Exception as e:
+        print(f"Error loading stopwords from file: {e}")
+        hinglish_stopwords = set()
+    
+    # Add additional chat-specific stopwords
+    chat_stopwords = {
+        'media', 'omitted', 'image', 'video', 'audio', 'sticker', 'gif',
+        'http', 'https', 'www', 'com', 'message', 'deleted', 'ok', 'okay',
+        'yes', 'no', 'hi', 'hello', 'hey', 'hmm', 'haha', 'lol', 'lmao',
+        'thanks', 'thank', 'you', 'the', 'and', 'for', 'this', 'that',
+        'have', 'has', 'had', 'not', 'with', 'from', 'your', 'which',
+        'there', 'their', 'they', 'them', 'then', 'than', 'but', 'also'
+    }
+    
+    # Combine all stopwords
+    all_stopwords = hinglish_stopwords.union(chat_stopwords)
+    
+    # Process messages
     words = []
-
-    for message in temp['message']:
-        for word in message.lower().split():
-            if word not in stop_words:
-                words.append(word)
-
-    most_common_df = pd.DataFrame(Counter(words).most_common(25),columns=['Word', 'Frequency'])
-
-    fig = px.bar(most_common_df, x='Word', y='Frequency', labels={'Word': 'Word', 'Frequency': 'Frequency'})
-    fig.update_layout(title="Most Common Words")
-    fig.update_xaxes(title_text='Word', tickangle=-45)
-    fig.update_yaxes(title_text='Frequency')
-    fig.write_image("exports/charts/commonwords.png")
+    for message in df['message']:
+        # Skip media messages
+        if 'omitted' in message.lower():
+            continue
+            
+        # Clean and tokenize
+        clean_message = re.sub(r'[^\w\s]', '', message.lower())
+        message_words = clean_message.split()
+        
+        # Filter stopwords, short words, and words containing digits
+        filtered_words = []
+        for word in message_words:
+            # Skip if word is in stopwords
+            if word.lower() in all_stopwords:
+                continue
+                
+            # Skip if word is too short
+            if len(word) <= 2:
+                continue
+                
+            # Skip if word contains any digits
+            if any(char.isdigit() for char in word):
+                continue
+                
+            filtered_words.append(word)
+            
+        words.extend(filtered_words)
+    
+    # Count word frequencies
+    word_counts = {}
+    for word in words:
+        if word in word_counts:
+            word_counts[word] += 1
+        else:
+            word_counts[word] = 1
+    
+    # Get top words
+    top_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:100]
+    print(f"Top words after filtering: {top_words[:10]}...")
+    
+    # Prepare data for word cloud
+    word_cloud_data = pd.DataFrame(top_words, columns=['word', 'count'])
+    
+    # Check if we have any words to display
+    if word_cloud_data.empty:
+        # Create an empty figure with a message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No significant words found after filtering stopwords",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=20)
+        )
+        return fig
+    
+    # Scale sizes for better visualization
+    max_count = word_cloud_data['count'].max()
+    word_cloud_data['size'] = (word_cloud_data['count'] / max_count * 50) + 10
+    
+    # Generate random positions with collision detection
+    positions = []
+    for _ in range(len(word_cloud_data)):
+        attempts = 0
+        while attempts < 100:  # Limit attempts to avoid infinite loop
+            x = random.uniform(-0.8, 0.8)
+            y = random.uniform(-0.8, 0.8)
+            
+            # Check for collisions with existing positions
+            collision = False
+            for pos in positions:
+                # Simple distance check
+                if ((x - pos[0])**2 + (y - pos[1])**2) < 0.02:  # Adjust this value for spacing
+                    collision = True
+                    break
+            
+            if not collision:
+                positions.append((x, y))
+                break
+            
+            attempts += 1
+            
+        # If we couldn't find a non-colliding position, just add one
+        if attempts >= 100:
+            positions.append((random.uniform(-0.8, 0.8), random.uniform(-0.8, 0.8)))
+    
+    word_cloud_data['x'] = [pos[0] for pos in positions]
+    word_cloud_data['y'] = [pos[1] for pos in positions]
+    
+    # Create color scale based on frequency
+    word_cloud_data['color'] = word_cloud_data['count'].rank(pct=True)
+    
+    # Create the figure
+    fig = go.Figure()
+    
+    # Add text traces for each word
+    for _, row in word_cloud_data.iterrows():
+        # Get color from Viridis colorscale
+        color_idx = min(int(row['color']*8), 7)  # Ensure index is within range
+        
+        fig.add_trace(go.Scatter(
+            x=[row['x']],
+            y=[row['y']],
+            mode='text',
+            text=[row['word']],
+            textfont=dict(
+                size=row['size'],
+                color=px.colors.sequential.Viridis[color_idx]
+            ),
+            hoverinfo='text',
+            hovertext=f"{row['word']}: {row['count']} occurrences",
+            showlegend=False
+        ))
+    
+    # Update layout
+    fig.update_layout(
+        title={
+            'text': f'Word Cloud for {selected_user}' if selected_user != 'Overall' else 'Overall Word Cloud',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis=dict(
+            showgrid=False,
+            showticklabels=False,
+            zeroline=False
+        ),
+        yaxis=dict(
+            showgrid=False,
+            showticklabels=False,
+            zeroline=False
+        ),
+        hovermode='closest',
+        margin=dict(l=20, r=20, t=50, b=20),
+        template='plotly_white'
+    )
+    
+    # Print some debug info
+    print(f"Generated word cloud with {len(word_cloud_data)} words after filtering {len(all_stopwords)} stopwords and numbers")
+    
     return fig
 
+def most_common_words(selected_user, df):
+    """
+    Enhanced visualization of most common words with Hinglish stopword handling
+    """
+    if selected_user != 'Overall':
+        df = df[df['user'] == selected_user]
+
+    # Load stopwords from the local file
+    try:
+        with open('stop_hinglish.txt', 'r', encoding='utf-8') as f:
+            hinglish_stopwords = set(word.strip() for word in f.readlines())
+        print(f"Loaded {len(hinglish_stopwords)} Hinglish stopwords from file")
+    except Exception as e:
+        print(f"Error loading stopwords from file: {e}")
+        hinglish_stopwords = set()
+    
+    # Add additional chat-specific stopwords
+    chat_stopwords = {
+        'media', 'omitted', 'image', 'video', 'audio', 'sticker', 'gif',
+        'http', 'https', 'www', 'com', 'message', 'deleted', 'ok', 'okay',
+        'yes', 'no', 'hi', 'hello', 'hey', 'hmm', 'haha', 'lol', 'lmao',
+        'thanks', 'thank', 'you', 'the', 'and', 'for', 'this', 'that',
+        'have', 'has', 'had', 'not', 'with', 'from', 'your', 'which',
+        'there', 'their', 'they', 'them', 'then', 'than', 'but', 'also'
+    }
+    
+    # Combine all stopwords
+    all_stopwords = hinglish_stopwords.union(chat_stopwords)
+    
+    # Process messages
+    words = []
+    for message in df['message']:
+        # Skip media messages
+        if 'omitted' in message.lower():
+            continue
+            
+        # Clean and tokenize
+        clean_message = re.sub(r'[^\w\s]', '', message.lower())
+        message_words = clean_message.split()
+        
+        # Filter stopwords, short words, and words containing digits
+        filtered_words = []
+        for word in message_words:
+            # Skip if word is in stopwords
+            if word.lower() in all_stopwords:
+                continue
+                
+            # Skip if word is too short
+            if len(word) <= 2:
+                continue
+                
+            # Skip if word contains any digits
+            if any(char.isdigit() for char in word):
+                continue
+                
+            filtered_words.append(word)
+            
+        words.extend(filtered_words)
+    
+    # Count word frequencies
+    word_counts = {}
+    for word in words:
+        if word in word_counts:
+            word_counts[word] += 1
+        else:
+            word_counts[word] = 1
+    
+    # Get top words
+    top_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:20]
+    print(f"Top common words after filtering: {top_words[:5]}...")
+    
+    # Check if we have any words to display
+    if not top_words:
+        # Create an empty figure with a message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No significant words found after filtering stopwords",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=20)
+        )
+    return fig
+
+    word_df = pd.DataFrame(top_words, columns=['word', 'count'])
+    
+    # Create horizontal bar chart
+    fig = px.bar(
+        word_df,
+        y='word',
+        x='count',
+        orientation='h',
+        color='count',
+        color_continuous_scale='Viridis',
+        title=f"Most Common Words for {selected_user}" if selected_user != 'Overall' else "Overall Most Common Words"
+    )
+    
+    # Update layout
+    fig.update_layout(
+        xaxis_title="Count",
+        yaxis_title="Word",
+        yaxis=dict(autorange="reversed"),  # Highest count at top
+        template='plotly_white'
+    )
+    
+    # Print some debug info
+    print(f"Generated common words chart with {len(word_df)} words after filtering {len(all_stopwords)} stopwords and numbers")
+    
+    return fig
 
 def emoji_helper(selected_user,df):
     if selected_user != 'Overall':
@@ -218,49 +418,237 @@ def emoji_helper(selected_user,df):
     fig.write_image("exports/charts/emojis.png")
     return fig
 
-def monthly_timeline(selected_user,df):
-
+def monthly_timeline(selected_user, df):
+    """
+    Creates an enhanced monthly timeline visualization with trend line
+    """
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
-    timeline = df.groupby(['year', 'month_num', 'month']).count()['message'].reset_index()
-
-    time = []
-    for i in range(timeline.shape[0]):
-        time.append(timeline['month'][i] + "-" + str(timeline['year'][i]))
-
-    timeline['time'] = time
-
+    # Ensure we have date as datetime
+    if not pd.api.types.is_datetime64_any_dtype(df['date']):
+        df['date'] = pd.to_datetime(df['date'])
+    
+    # Create year-month field for proper chronological sorting
+    df['year_month'] = df['date'].dt.to_period('M')
+    
+    # Group by year-month
+    timeline = df.groupby('year_month').agg({
+        'message': 'count',
+        'user': 'nunique'  # Count unique users per month
+    }).reset_index()
+    
+    # Convert period to string for display
+    timeline['time'] = timeline['year_month'].astype(str)
+    
+    # Calculate 3-month moving average for trend
+    timeline['trend'] = timeline['message'].rolling(window=3, min_periods=1).mean()
+    
+    # Create enhanced figure
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(x=timeline['time'], y=timeline['message'], mode='lines', marker=dict(color='green')))
-    fig.update_layout(xaxis_tickangle=-45)
-
-    fig.write_image("exports/charts/monthly_timeline.png")
+    
+    # Add bar chart for message count
+    fig.add_trace(go.Bar(
+        x=timeline['time'],
+        y=timeline['message'],
+        name='Messages',
+        marker_color='rgba(58, 71, 80, 0.6)',
+        hovertemplate='%{y} messages<extra></extra>'
+    ))
+    
+    # Add trend line
+    fig.add_trace(go.Scatter(
+        x=timeline['time'],
+        y=timeline['trend'],
+        mode='lines',
+        name='3-Month Trend',
+        line=dict(color='firebrick', width=2),
+        hovertemplate='Trend: %{y:.1f}<extra></extra>'
+    ))
+    
+    # Improve layout
+    fig.update_layout(
+        title={
+            'text': f'Monthly Message Activity for {selected_user}' if selected_user != 'Overall' else 'Monthly Message Activity',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='Month',
+        yaxis_title='Number of Messages',
+        legend_title='Metrics',
+        hovermode='x unified',
+        template='plotly_white'
+    )
+    
     return fig
 
-def daily_timeline(selected_user,df):
-
+def daily_timeline(selected_user, df):
+    """
+    Creates an enhanced daily timeline with day of week highlighting
+    """
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
 
-    daily_timeline = df.groupby('only_date').count()['message'].reset_index()
+    # Ensure we have date as datetime
+    if not pd.api.types.is_datetime64_any_dtype(df['date']):
+        df['date'] = pd.to_datetime(df['date'])
+    
+    # Extract date only (no time)
+    df['message_date'] = df['date'].dt.date
+    
+    # Add day of week
+    df['day_of_week'] = df['date'].dt.day_name()
+    
+    # Group by date
+    daily_counts = df.groupby('message_date').agg({
+        'message': 'count',
+        'day_of_week': 'first'  # Get day name
+    }).reset_index()
+    
+    # Convert back to datetime for proper plotting
+    daily_counts['message_date'] = pd.to_datetime(daily_counts['message_date'])
+    
+    # Calculate 7-day moving average
+    daily_counts['7day_avg'] = daily_counts['message'].rolling(window=7, min_periods=1).mean()
+    
+    # Create color mapping for days of week
+    day_colors = {
+        'Monday': '#FFD700',    # Gold
+        'Tuesday': '#87CEFA',   # Light Sky Blue
+        'Wednesday': '#90EE90', # Light Green
+        'Thursday': '#FFA07A',  # Light Salmon
+        'Friday': '#DA70D6',    # Orchid
+        'Saturday': '#FF6347',  # Tomato
+        'Sunday': '#1E90FF'     # Dodger Blue
+    }
+    
+    # Map colors to days
+    daily_counts['color'] = daily_counts['day_of_week'].map(day_colors)
+    
+    # Create figure
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=daily_timeline['only_date'], y=daily_timeline['message'], mode='lines',
-                             marker=dict(color='black')))
-    fig.update_layout(xaxis_tickangle=-45)
-    fig.write_image("exports/charts/daily_timeline.png")
+    
+    # Add scatter plot with colored points by day of week
+    fig.add_trace(go.Scatter(
+        x=daily_counts['message_date'],
+        y=daily_counts['message'],
+        mode='markers',
+        marker=dict(
+            size=8,
+            color=daily_counts['color'],
+            opacity=0.7
+        ),
+        name='Daily Count',
+        hovertemplate='%{y} messages on %{x|%A, %b %d, %Y}<extra></extra>'
+    ))
+    
+    # Add 7-day moving average
+    fig.add_trace(go.Scatter(
+        x=daily_counts['message_date'],
+        y=daily_counts['7day_avg'],
+        mode='lines',
+        line=dict(color='rgba(0,0,0,0.7)', width=2),
+        name='7-Day Average',
+        hovertemplate='7-day avg: %{y:.1f}<extra></extra>'
+    ))
+    
+    # Create day of week legend
+    for day, color in day_colors.items():
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(size=10, color=color),
+            name=day,
+            showlegend=True
+        ))
+    
+    # Update layout
+    fig.update_layout(
+        title={
+            'text': f'Daily Message Activity for {selected_user}' if selected_user != 'Overall' else 'Daily Message Activity',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='Date',
+        yaxis_title='Number of Messages',
+        hovermode='x unified',
+        template='plotly_white'
+    )
+    
     return fig
 
-def week_activity_map(selected_user,df):
-
+def week_activity_map(selected_user, df):
+    """
+    Enhanced weekly activity heatmap showing hourly patterns
+    """
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
-    busy_day =  df['day_name'].value_counts()
-    fig = px.bar(busy_day, x=busy_day.index, y=busy_day.values, color=busy_day.values,
-                 color_continuous_scale='Viridis')
-    fig.update_layout(xaxis_tickangle=-45)
-    fig.write_image("exports/charts/week_activity.png")
+    
+    # Ensure we have date as datetime
+    if not pd.api.types.is_datetime64_any_dtype(df['date']):
+        df['date'] = pd.to_datetime(df['date'])
+    
+    # Extract day of week and hour
+    df['day_of_week'] = df['date'].dt.day_name()
+    df['hour'] = df['date'].dt.hour
+    
+    # Create pivot table for heatmap
+    heatmap_data = df.pivot_table(
+        index='day_of_week', 
+        columns='hour', 
+        values='message',
+        aggfunc='count',
+        fill_value=0
+    )
+    
+    # Reorder days
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    heatmap_data = heatmap_data.reindex(day_order)
+    
+    # Create heatmap
+    fig = px.imshow(
+        heatmap_data,
+        labels=dict(x="Hour of Day", y="Day of Week", color="Message Count"),
+        x=[str(h) for h in range(24)],
+        y=day_order,
+        color_continuous_scale='Viridis',
+        title=f"Weekly Activity Pattern for {selected_user}" if selected_user != 'Overall' else "Overall Weekly Activity Pattern"
+    )
+    
+    # Add hour labels
+    hour_labels = [f"{h}:00" for h in range(24)]
+    fig.update_xaxes(tickvals=list(range(24)), ticktext=hour_labels)
+    
+    # Add annotations for peak times
+    peak_day = heatmap_data.sum(axis=1).idxmax()
+    peak_hour = heatmap_data.sum(axis=0).idxmax()
+    peak_cell = heatmap_data.stack().idxmax()
+    
+    fig.add_annotation(
+        x=peak_hour,
+        y=peak_day,
+        text="Peak Activity",
+        showarrow=True,
+        arrowhead=1,
+        ax=0,
+        ay=-40
+    )
+    
+    # Update layout
+    fig.update_layout(
+        xaxis_title="Hour of Day",
+        yaxis_title="Day of Week",
+        coloraxis_colorbar=dict(
+            title="Message Count",
+        ),
+        template='plotly_white'
+    )
+    
     return fig
 
 def month_activity_map(selected_user,df):
@@ -578,23 +966,156 @@ def top_texts_late_replies(df):
 
 # shows everyone's reply time and also plots graph
 def show_average_reply_time(df):
-    # Group by user and calculate the average reply time
-    user_avg_reply_time = df.groupby('user')['Reply Time'].mean().reset_index()
+    """
+    Enhanced visualization of reply times with user comparisons
+    """
+    # Create a copy to avoid modifying original
+    df_copy = df.copy()
+    
+    # Handle case where date is both index and column
+    if df_copy.index.name == 'date':
+        if 'date' in df_copy.columns:
+            # If date is both an index and a column, just drop the index
+            df_copy = df_copy.reset_index(drop=True)
+        else:
+            # If date is only in the index, reset the index to get it as a column
+            df_copy = df_copy.reset_index()
+    
+    # Ensure we have date as datetime
+    if not pd.api.types.is_datetime64_any_dtype(df_copy['date']):
+        df_copy['date'] = pd.to_datetime(df_copy['date'])
+    
+    # Sort by date
+    df_copy = df_copy.sort_values('date')
+    
+    # Add previous user column
+    df_copy['prev_user'] = df_copy['user'].shift(1)
+    df_copy['prev_time'] = df_copy['date'].shift(1)
+    
+    # Calculate time difference in minutes
+    df_copy['time_diff'] = (df_copy['date'] - df_copy['prev_time']).dt.total_seconds() / 60
+    
+    # Filter for actual replies (different user than previous message)
+    replies = df_copy[(df_copy['user'] != df_copy['prev_user']) & 
+                      (df_copy['time_diff'] <= 24*60) &  # Limit to 24 hours
+                      (df_copy['time_diff'] > 0)]        # Ensure positive time
+    
+    # Group by user to get average reply time
+    user_reply_times = replies.groupby('user').agg({
+        'time_diff': ['mean', 'median', 'count']
+    }).reset_index()
+    
+    # Flatten column names
+    user_reply_times.columns = ['user', 'mean_reply_time', 'median_reply_time', 'reply_count']
+    
+    # Filter users with at least 5 replies
+    user_reply_times = user_reply_times[user_reply_times['reply_count'] >= 5]
+    
+    # Sort by median reply time
+    user_reply_times = user_reply_times.sort_values('median_reply_time')
+    
+    # Create figure
+    fig = go.Figure()
+    
+    # Check if we have any data to display
+    if user_reply_times.empty:
+        # Create an empty figure with a message
+        fig.add_annotation(
+            text="Not enough reply data to analyze",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=20)
+        )
+    return fig
 
-    # Find the user with the highest average reply time
-    highest_avg_reply_user = user_avg_reply_time.loc[user_avg_reply_time['Reply Time'].idxmax()]
-
-    # Plot the interactive plot
-    fig = px.bar(user_avg_reply_time, x='user', y='Reply Time', title='Average Reply Time by User')
-    fig.update_layout(xaxis_title='User', yaxis_title='Average Reply Time')
-    fig.update_traces(marker_color='lightskyblue')
-
-    # Add annotation for the highest reply time user
-    fig.add_annotation(x=highest_avg_reply_user['user'], y=highest_avg_reply_user['Reply Time'],
-                       text=f'Highest Reply Time User: {highest_avg_reply_user["user"]}',
-                       showarrow=True, arrowhead=1, ax=0, ay=-40)
-    fig.write_image("exports/charts/average_reply_time.png")
-    # Show the plot
+    # Add bar for median reply time
+    fig.add_trace(go.Bar(
+        x=user_reply_times['user'],
+        y=user_reply_times['median_reply_time'],
+        name='Median Reply Time',
+        marker_color='#2196F3',
+        hovertemplate='Median: %{y:.1f} minutes<br>Count: %{text}<extra></extra>',
+        text=user_reply_times['reply_count']
+    ))
+    
+    # Add markers for mean reply time
+    fig.add_trace(go.Scatter(
+        x=user_reply_times['user'],
+        y=user_reply_times['mean_reply_time'],
+        mode='markers',
+        name='Mean Reply Time',
+        marker=dict(
+            color='#F44336',
+            size=10,
+            symbol='diamond'
+        ),
+        hovertemplate='Mean: %{y:.1f} minutes<extra></extra>'
+    ))
+    
+    # Add overall average line
+    if not user_reply_times.empty:
+        overall_median = user_reply_times['median_reply_time'].median()
+        fig.add_shape(
+            type="line",
+            x0=-0.5,
+            y0=overall_median,
+            x1=len(user_reply_times)-0.5,
+            y1=overall_median,
+            line=dict(
+                color="green",
+                width=2,
+                dash="dash",
+            )
+        )
+        
+        # Add annotation for overall average
+        fig.add_annotation(
+            x=len(user_reply_times)-1,
+            y=overall_median,
+            text=f"Overall Median: {overall_median:.1f} min",
+            showarrow=True,
+            arrowhead=1,
+            ax=50,
+            ay=-30
+        )
+    
+    # Update layout
+    fig.update_layout(
+        title={
+            'text': 'Average Reply Time by User',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='User',
+        yaxis_title='Reply Time (minutes)',
+        hovermode='closest',
+        template='plotly_white',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    # Add a second y-axis for reply count
+    fig.update_layout(
+        annotations=[
+            dict(
+                text="Lower is faster response",
+                x=0.5,
+                y=1.05,
+                xref="paper",
+                yref="paper",
+                showarrow=False
+            )
+        ]
+    )
+    
     return fig
 
 
@@ -724,102 +1245,146 @@ def median_delay_between_conversations(user,df):
 
 import plotly.graph_objects as go
 
-def analyze_and_plot_sentiment(selected_users,df):
-    nltk.download('vader_lexicon')
-    # Filter messages based on selected users
-    if selected_users  == 'Overall':
-        selected_df = df['message']  # Consider the whole message column if 'Overall' is selected
-    else:
-        if isinstance(selected_users, str):
-            selected_users = [selected_users]  # Convert to list if only one user is selected
-        selected_df = df[df['user'].isin(selected_users)]['message']
-
-
-    # Initialize the sentiment analyzer outside the function
-    sid = SentimentIntensityAnalyzer()
-
-    # Initialize dictionaries to store positive and negative scores for each word
-    positive_word_sentiments = {}
-    negative_word_sentiments = {}
-
-    # Tokenize the conversation into words
-    words = nltk.word_tokenize(' '.join(selected_df))
-
-    # Iterate over each word in the conversation
-    for word in words:
-        # Get sentiment score for the word
-        sentiment_score = sid.polarity_scores(word)['compound']
-
-        # Update word_sentiments dictionary based on sentiment score
-        if sentiment_score > 0:
-            positive_word_sentiments[word] = positive_word_sentiments.get(word, 0) + sentiment_score
-        elif sentiment_score < 0:
-            negative_word_sentiments[word] = negative_word_sentiments.get(word, 0) + sentiment_score
-
-    # Sort dictionaries by their values (sentiment scores)
-    sorted_positive_words = sorted(positive_word_sentiments.items(), key=lambda x: x[1], reverse=True)
-    sorted_negative_words = sorted(negative_word_sentiments.items(), key=lambda x: x[1], reverse=True)
-
-    # Extract words and scores for plotting
-    positive_words, positive_scores = zip(*sorted_positive_words)
-    negative_words, negative_scores = zip(*sorted_negative_words)
-
-    # Create hover text for positive sentiment scores
-    positive_hover_text = [
-        f'Word: {word}<br>Sentiment Score: {score}<br>Frequency: {positive_word_sentiments[word]}<br>Frequency: {words.count(word)}'
-        for
-        word, score in zip(positive_words, positive_scores)]
-
-    # Create hover text for negative sentiment scores
-    negative_hover_text = [
-        f'Word: {word}<br>Sentiment Score: {score}<br>Frequency: {negative_word_sentiments[word]}<br>Frequency: {words.count(word)}'
-        for
-        word, score in zip(negative_words, negative_scores)]
-
-    # Create histogram for positive sentiment scores
-    positive_trace = go.Bar(
-        x=positive_words,
-        y=positive_scores,
-        marker_color='blue',
+def analyze_and_plot_sentiment(selected_user, df):
+    """
+    Enhanced sentiment analysis with time trends and user comparisons
+    """
+    if selected_user != 'Overall':
+        df = df[df['user'] == selected_user]
+    
+    # Ensure we have date as datetime
+    if not pd.api.types.is_datetime64_any_dtype(df['date']):
+        df['date'] = pd.to_datetime(df['date'])
+    
+    # Add month-year for grouping
+    df['month_year'] = df['date'].dt.strftime('%Y-%m')
+    
+    # Initialize sentiment analyzer
+    sentiment_analyzer = SentimentIntensityAnalyzer()
+    
+    # Calculate sentiment for each message
+    sentiment_data = []
+    for _, row in df.iterrows():
+        sentiment = sentiment_analyzer.polarity_scores(row['message'])
+        sentiment_data.append({
+            'user': row['user'],
+            'date': row['date'],
+            'month_year': row['month_year'],
+            'message': row['message'],
+            'positive': sentiment['pos'],
+            'negative': sentiment['neg'],
+            'neutral': sentiment['neu'],
+            'compound': sentiment['compound'],
+            'sentiment_category': 'Positive' if sentiment['compound'] > 0.05 else 
+                                 'Negative' if sentiment['compound'] < -0.05 else 'Neutral'
+        })
+    
+    sentiment_df = pd.DataFrame(sentiment_data)
+    
+    # Create monthly sentiment trends
+    monthly_sentiment = sentiment_df.groupby('month_year').agg({
+        'positive': 'mean',
+        'negative': 'mean',
+        'neutral': 'mean',
+        'compound': 'mean',
+        'message': 'count'
+    }).reset_index()
+    
+    # Sort chronologically
+    monthly_sentiment['date'] = pd.to_datetime(monthly_sentiment['month_year'] + '-01')
+    monthly_sentiment = monthly_sentiment.sort_values('date')
+    monthly_sentiment['month_year_formatted'] = monthly_sentiment['date'].dt.strftime('%b %Y')
+    
+    # Create sentiment distribution figure
+    sentiment_counts = sentiment_df['sentiment_category'].value_counts().reset_index()
+    sentiment_counts.columns = ['Sentiment', 'Count']
+    
+    # Order categories
+    category_order = ['Positive', 'Neutral', 'Negative']
+    sentiment_counts['Sentiment'] = pd.Categorical(
+        sentiment_counts['Sentiment'], 
+        categories=category_order, 
+        ordered=True
+    )
+    sentiment_counts = sentiment_counts.sort_values('Sentiment')
+    
+    # Calculate percentages
+    total = sentiment_counts['Count'].sum()
+    sentiment_counts['Percentage'] = (sentiment_counts['Count'] / total * 100).round(1)
+    
+    # Create distribution figure
+    dist_fig = px.pie(
+        sentiment_counts, 
+        values='Count', 
+        names='Sentiment',
+        color='Sentiment',
+        color_discrete_map={
+            'Positive': '#4CAF50',
+            'Neutral': '#2196F3',
+            'Negative': '#F44336'
+        },
+        hole=0.4,
+        title=f"Sentiment Distribution for {selected_user}" if selected_user != 'Overall' else "Overall Sentiment Distribution"
+    )
+    
+    # Add percentage labels
+    dist_fig.update_traces(
+        textposition='inside',
+        textinfo='percent+label',
+        hovertemplate='%{label}<br>Count: %{value}<br>Percentage: %{percent:.1%}<extra></extra>'
+    )
+    
+    # Create trend figure
+    trend_fig = go.Figure()
+    
+    # Add sentiment trend lines
+    trend_fig.add_trace(go.Scatter(
+        x=monthly_sentiment['month_year_formatted'],
+        y=monthly_sentiment['positive'],
+        mode='lines+markers',
         name='Positive',
-        hovertext=positive_hover_text
-    )
-
-    # Create histogram for negative sentiment scores
-    negative_trace = go.Bar(
-        x=negative_words,
-        y=negative_scores,
-        marker_color='red',
+        line=dict(color='#4CAF50', width=2)
+    ))
+    
+    trend_fig.add_trace(go.Scatter(
+        x=monthly_sentiment['month_year_formatted'],
+        y=monthly_sentiment['negative'],
+        mode='lines+markers',
         name='Negative',
-        hovertext=negative_hover_text
+        line=dict(color='#F44336', width=2)
+    ))
+    
+    trend_fig.add_trace(go.Scatter(
+        x=monthly_sentiment['month_year_formatted'],
+        y=monthly_sentiment['compound'],
+        mode='lines+markers',
+        name='Overall Sentiment',
+        line=dict(color='#2196F3', width=3)
+    ))
+    
+    # Update trend layout
+    trend_fig.update_layout(
+        title={
+            'text': f'Sentiment Trends for {selected_user}' if selected_user != 'Overall' else 'Overall Sentiment Trends',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='Month',
+        yaxis_title='Sentiment Score',
+        hovermode='x unified',
+        template='plotly_white',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
-
-    # Create layout for positive scores histogram
-    positive_layout = go.Layout(
-        title='Positive Sentiment Scores by Word',
-        xaxis=dict(title='Words'),
-        yaxis=dict(title='Sentiment Score')
-    )
-
-    # Create layout for negative scores histogram
-    negative_layout = go.Layout(
-        title='Negative Sentiment Scores by Word',
-        xaxis=dict(title='Words'),
-        yaxis=dict(title='Sentiment Score', autorange="reversed")
-    )
-
-    # Create figure for positive scores histogram
-    positive_fig = go.Figure(data=[positive_trace], layout=positive_layout)
-
-    # Create figure for negative scores histogram
-    negative_fig = go.Figure(data=[negative_trace], layout=negative_layout)
-
-    positive_fig.write_image("exports/charts/positive.png")
-    negative_fig.write_image("exports/charts/negative.png")
-
-    return positive_fig, negative_fig
-
-
+    
+    return dist_fig, trend_fig
 
 def calculate_sentiment_percentage(selected_users, df):
     nltk.download('vader_lexicon')
