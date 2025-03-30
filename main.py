@@ -861,9 +861,9 @@ if selected == "Intro":
                             size=15,
                             colorbar=dict(
                                 thickness=15,
-                                title='Node Connections',
-                                xanchor='left',
-                                titleside='right'
+                                title=dict(
+                                    side="right"
+                                )
                             )
                         ),
                         hoverinfo='text')
