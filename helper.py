@@ -299,7 +299,7 @@ def most_common_words(selected_user, df):
     """
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
-
+    
     # Load stopwords from the local file
     try:
         with open('stop_hinglish.txt', 'r', encoding='utf-8') as f:
@@ -375,8 +375,8 @@ def most_common_words(selected_user, df):
             showarrow=False,
             font=dict(size=20)
         )
-    return fig
-
+        return fig
+    
     word_df = pd.DataFrame(top_words, columns=['word', 'count'])
     
     # Create horizontal bar chart

@@ -272,6 +272,8 @@ if selected == "Intro":
         if selected_user:
             with placeholder.container():
 
+
+
                 # Stats Area
                 num_messages, words, num_media_messages, num_links = helper.fetch_stats(selected_user, df)
                 st.title("Top Statistics")
@@ -359,12 +361,9 @@ if selected == "Intro":
                 st.plotly_chart(wordcloud_fig)
 
 
-
-
                 # most common words
                 fig = helper.most_common_words(selected_user, df)
                 st.title('Most common words')
-
 
                 st.plotly_chart(fig)
 
@@ -483,14 +482,6 @@ if selected == "Intro":
                 median_delay_per_user = helper.median_delay_between_conversations(selected_user,df)
                 if median_delay_per_user is not None :
                     st.write(f"Median Reply Delay for {selected_user}: {median_delay_per_user:.2f} minutes")
-                
-
-
-
-
-
-
-                 
 
                 # double_text_count = helper.double_text_counts(selected_user,df)
                 # st.write(double_text_count)
