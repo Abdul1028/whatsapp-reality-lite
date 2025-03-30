@@ -970,6 +970,3 @@ def export(selected_user,df):
 
     st.toast('Data Exported successfully! Now you can download :)')
 
-
-
-
