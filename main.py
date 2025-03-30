@@ -330,9 +330,9 @@ if selected == "Intro":
                 else:
                     st.info("Select the analysis time period")
 
-                st.header("Most busy day")
-                fig = helper.week_activity_map(selected_user, df)
-                st.plotly_chart(fig)
+                # st.header("Most busy day")
+                # fig = helper.week_activity_map(selected_user, df)
+                # st.plotly_chart(fig)
 
                 st.header("Most busy month")
                 fig= helper.month_activity_map(selected_user, df)
