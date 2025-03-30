@@ -146,6 +146,51 @@ else:
 
 nltk.download('vader_lexicon')
 
+# Add this function definition at the top of main.py, before it's used
+def generate_personality_description(traits):
+    """Generate a description based on personality traits"""
+    descriptions = {
+        'openness': {
+            'high': "You're curious, creative, and open to new experiences. You enjoy exploring new ideas and have diverse interests.",
+            'medium': "You have a healthy balance between tradition and innovation. You're open to new ideas while valuing stability.",
+            'low': "You're practical and grounded. You prefer familiar routines and concrete, straightforward communication."
+        },
+        'conscientiousness': {
+            'high': "You're organized, reliable, and detail-oriented. You respond promptly and take your commitments seriously.",
+            'medium': "You balance structure with flexibility. You're generally reliable while allowing room for spontaneity.",
+            'low': "You have a relaxed, flexible approach to life. You prefer to go with the flow rather than stick to rigid plans."
+        },
+        'extraversion': {
+            'high': "You're outgoing, energetic, and enjoy social interaction. You communicate frequently and expressively.",
+            'medium': "You balance social time with alone time. You engage well with others but also value your independence.",
+            'low': "You're thoughtful and reserved. You prefer deeper one-on-one conversations to group chats."
+        },
+        'agreeableness': {
+            'high': "You're friendly, cooperative, and considerate. You focus on harmony and positive interactions.",
+            'medium': "You're generally cooperative while maintaining healthy boundaries. You can be both kind and assertive.",
+            'low': "You're direct and straightforward. You prioritize honesty over social niceties and don't shy away from disagreement."
+        },
+        'neuroticism': {
+            'high': "You're emotionally sensitive and expressive. You experience a wide range of emotions and share them openly.",
+            'medium': "You have a balanced emotional response. You're neither overly sensitive nor completely detached.",
+            'low': "You're calm and emotionally stable. You tend to stay composed even in stressful situations."
+        }
+    }
+    
+    result = ""
+    for trait, score in traits.items():
+        if score > 70:
+            level = 'high'
+        elif score > 30:
+            level = 'medium'
+        else:
+            level = 'low'
+        
+        result += descriptions[trait][level] + "\n\n"
+    
+    return result
+
+
 if selected == "Intro":
     c1, c2 = st.columns((2, 1))
     c1.title("""Whatsapp Chat Analyser""")
@@ -425,6 +470,16 @@ if selected == "Intro":
                 st.write(f"Message to which the user replied the most late: {msg}")
                 st.write(f"Replied message: {reply}")
 
+                # Add the new function call here
+                st.subheader("Average Late Reply Time Analysis")
+                late_reply_fig, avg_late_reply_times, overall_avg = helper.calculate_average_late_reply_time(df)
+                st.plotly_chart(late_reply_fig)
+                st.write(f"Overall average late reply time: {overall_avg:.1f} hours")
+                
+                # Display the data in a table
+                st.write("Average Late Reply Times by User:")
+                st.dataframe(avg_late_reply_times)
+
                 helper.message_length_analysis(selected_user, df)
 
 
@@ -506,6 +561,715 @@ if selected == "Intro":
                     message = group['message']
                     sentiment = helper.analyze_sentiment(message)  # assuming you have a helper function
                     display_chat_message(sender, message, sentiment)
+
+# Add after the existing analyses
+
+# Conversation Momentum Analysis
+st.header("Conversation Momentum Analysis")
+momentum_data = helper.analyze_conversation_momentum(df)
+
+if momentum_data:
+    # Display overall metrics
+    st.subheader("Overall Momentum Metrics")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Average Conversation Momentum", f"{momentum_data['avg_momentum']:.2f}")
+        st.write(f"Positive momentum in {momentum_data['positive_momentum_pct']:.1f}% of conversations")
+    
+    # Plot momentum starters
+    momentum_starters_df = pd.DataFrame(momentum_data['momentum_starters'], 
+                                        columns=['User', 'Average Momentum'])
+    
+    if not momentum_starters_df.empty:
+        fig = px.bar(momentum_starters_df.head(10), 
+                     x='User', y='Average Momentum',
+                     title="Top Conversation Momentum Drivers",
+                     color='Average Momentum',
+                     color_continuous_scale='RdBu')
+        st.plotly_chart(fig)
+        
+        st.write("Users with positive momentum tend to keep conversations engaging and accelerating, "
+                 "while negative momentum indicates conversations that slow down.")
+    
+    # Plot conversation metrics
+    conv_metrics_df = momentum_data['conversation_metrics']
+    if not conv_metrics_df.empty:
+        fig = px.scatter(conv_metrics_df, 
+                         x='duration_minutes', y='message_rate',
+                         size='message_count', color='momentum',
+                         hover_name='conv_code',
+                         title="Conversation Dynamics",
+                         labels={'duration_minutes': 'Duration (minutes)', 
+                                 'message_rate': 'Messages per Minute',
+                                 'momentum': 'Momentum'},
+                         color_continuous_scale='RdBu')
+        st.plotly_chart(fig)
+else:
+    st.info("Not enough conversation data for momentum analysis.")
+
+# Topic Switching Analysis
+st.header("Topic Switching Analysis")
+topic_data = helper.analyze_topic_switching(df)
+
+if topic_data:
+    # Display overall metrics
+    st.subheader("Topic Switching Patterns")
+    st.write(f"Average topic switch rate: {topic_data['avg_switch_rate']:.2f} switches per message")
+    
+    # Plot top topic switchers
+    switchers_df = pd.DataFrame(topic_data['top_switchers'], 
+                                columns=['User', 'Topic Switches'])
+    
+    if not switchers_df.empty:
+        fig = px.bar(switchers_df.head(10), 
+                     x='User', y='Topic Switches',
+                     title="Top Topic Switchers",
+                     color='Topic Switches',
+                     color_continuous_scale='Viridis')
+        st.plotly_chart(fig)
+        
+        st.write("Users who frequently switch topics may be driving the conversation in new directions.")
+else:
+    st.info("Not enough conversation data for topic switching analysis.")
+
+# Initiator-Responder Dynamics
+st.header("Conversation Initiator-Responder Dynamics")
+dynamics_data = helper.analyze_initiator_responder_dynamics(df)
+
+if dynamics_data:
+    # Display metrics in columns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Top Conversation Initiators")
+        initiators_df = pd.DataFrame(dynamics_data['top_initiators'], 
+                                    columns=['User', 'Initiations'])
+        st.dataframe(initiators_df.head(5))
+    
+    with col2:
+        st.subheader("Top Responders")
+        responders_df = pd.DataFrame(dynamics_data['top_responders'], 
+                                    columns=['User', 'Responses'])
+        st.dataframe(responders_df.head(5))
+    
+    # Plot initiation-response ratios
+    ratios_df = pd.DataFrame(list(dynamics_data['initiation_response_ratios'].items()), 
+                            columns=['User', 'Initiation-Response Ratio'])
+    
+    fig = px.bar(ratios_df.sort_values('Initiation-Response Ratio', ascending=False), 
+                 x='User', y='Initiation-Response Ratio',
+                 title="Initiation vs Response Behavior",
+                 color='Initiation-Response Ratio',
+                 color_continuous_scale='Viridis')
+    st.plotly_chart(fig)
+    
+    st.write("A high ratio means the user tends to start conversations more than respond to others. "
+             "A low ratio means they primarily respond to others' messages.")
+    
+    # Plot most common initiator-responder pairs
+    pairs_df = pd.DataFrame(dynamics_data['most_common_pairs'], 
+                           columns=['Pair', 'Count'])
+    
+    fig = px.bar(pairs_df.head(10), 
+                 x='Pair', y='Count',
+                 title="Most Common Initiator-Responder Pairs",
+                 color='Count',
+                 color_continuous_scale='Viridis')
+    fig.update_layout(xaxis_tickangle=-45)
+    st.plotly_chart(fig)
+    
+    st.write("These pairs show the most common conversation initiation patterns, "
+             "revealing who tends to respond to whom.")
+else:
+    st.info("Not enough conversation data for initiator-responder analysis.")
+
+# Red Flag/Green Flag Analysis
+st.header("🚩 Red Flag / Green Flag Analysis 🚩")
+flag_data = helper.analyze_red_green_flags(df)
+
+if flag_data:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Top Red Flag Users")
+        red_flag_df = pd.DataFrame(flag_data['most_red_flags'], 
+                                  columns=['User', 'Red Flag Count'])
+        st.dataframe(red_flag_df.head(5))
+        
+        # Plot red flag types
+        red_types_df = pd.DataFrame(list(flag_data['all_red_flags'].items()), 
+                                   columns=['Flag Type', 'Count'])
+        fig = px.bar(red_types_df.sort_values('Count', ascending=False), 
+                     x='Flag Type', y='Count',
+                     title="Most Common Red Flags",
+                     color='Count',
+                     color_continuous_scale='Reds')
+        st.plotly_chart(fig)
+    
+    with col2:
+        st.subheader("Top Green Flag Users")
+        green_flag_df = pd.DataFrame(flag_data['most_green_flags'], 
+                                    columns=['User', 'Green Flag Count'])
+        st.dataframe(green_flag_df.head(5))
+        
+        # Plot green flag types
+        green_types_df = pd.DataFrame(list(flag_data['all_green_flags'].items()), 
+                                     columns=['Flag Type', 'Count'])
+        fig = px.bar(green_types_df.sort_values('Count', ascending=False), 
+                     x='Flag Type', y='Count',
+                     title="Most Common Green Flags",
+                     color='Count',
+                     color_continuous_scale='Greens')
+        st.plotly_chart(fig)
+    
+    # Plot green-to-red ratio
+    ratio_df = pd.DataFrame(flag_data['best_ratios'], 
+                           columns=['User', 'Green-to-Red Ratio'])
+    fig = px.bar(ratio_df.head(10), 
+                 x='User', y='Green-to-Red Ratio',
+                 title="Green-to-Red Flag Ratio by User",
+                 color='Green-to-Red Ratio',
+                 color_continuous_scale='RdYlGn')
+    st.plotly_chart(fig)
+    
+    st.write("A higher green-to-red ratio indicates more positive communication patterns.")
+
+# Vibe Check Analysis
+st.header("✨ GenZ Vibe Check ✨")
+vibe_data = helper.analyze_vibe_check(df)
+
+if vibe_data:
+    # Display overall vibe score
+    st.metric("Overall Chat Vibe Score", f"{vibe_data['overall_score']:.1f}")
+    
+    # Create vibe score gauge chart
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = vibe_data['overall_score'],
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "Chat Vibe Meter"},
+        gauge = {
+            'axis': {'range': [-100, 100]},
+            'bar': {'color': "darkblue"},
+            'steps': [
+                {'range': [-100, -50], 'color': "red"},
+                {'range': [-50, 0], 'color': "orange"},
+                {'range': [0, 50], 'color': "lightgreen"},
+                {'range': [50, 100], 'color': "green"}
+            ],
+            'threshold': {
+                'line': {'color': "black", 'width': 4},
+                'thickness': 0.75,
+                'value': vibe_data['overall_score']
+            }
+        }
+    ))
+    st.plotly_chart(fig)
+    
+    # Plot user vibe scores
+    vibe_scores_df = pd.DataFrame([(user, data['vibe_score']) 
+                                  for user, data in vibe_data['vibe_scores'].items()], 
+                                 columns=['User', 'Vibe Score'])
+    vibe_scores_df = vibe_scores_df.sort_values('Vibe Score', ascending=False)
+    
+    fig = px.bar(vibe_scores_df, 
+                 x='User', y='Vibe Score',
+                 title="User Vibe Scores",
+                 color='Vibe Score',
+                 color_continuous_scale='RdBu',
+                 range_color=[-100, 100])
+    st.plotly_chart(fig)
+    
+    st.write("Higher vibe scores indicate more positive GenZ communication patterns.")
+
+# GenZ Slang Analysis
+st.header("💯 GenZ Slang Analysis 💯")
+slang_data = helper.analyze_genz_slang(df)
+
+if slang_data:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Top Slang Users")
+        slang_users_df = pd.DataFrame(slang_data['most_slang_users'], 
+                                     columns=['User', 'Slang Count'])
+        st.dataframe(slang_users_df.head(5))
+    
+    with col2:
+        st.subheader("Highest Slang Density")
+        density_df = pd.DataFrame(slang_data['highest_density_users'], 
+                                 columns=['User', 'Slang per Message'])
+        st.dataframe(density_df.head(5))
+    
+    # Plot slang categories
+    categories_df = pd.DataFrame(list(slang_data['category_totals'].items()), 
+                               columns=['Category', 'Count'])
+    fig = px.pie(categories_df, 
+                 values='Count', names='Category',
+                 title="GenZ Slang Categories",
+                 color_discrete_sequence=px.colors.sequential.Plasma_r)
+    st.plotly_chart(fig)
+    
+    # Plot user slang breakdown
+    user_slang_data = []
+    for user, categories in slang_data['user_slang'].items():
+        for category, count in categories.items():
+            if count > 0:  # Only include non-zero counts
+                user_slang_data.append({
+                    'User': user,
+                    'Category': category,
+                    'Count': count
+                })
+    
+    user_slang_df = pd.DataFrame(user_slang_data)
+    if not user_slang_df.empty:
+        fig = px.bar(user_slang_df, 
+                     x='User', y='Count', color='Category',
+                     title="Slang Usage by User and Category",
+                     barmode='stack')
+        st.plotly_chart(fig)
+    
+    st.write("This analysis shows who uses the most GenZ slang and which types they prefer.")
+
+# Reply Pair Analysis
+st.header("👥 Reply Pair Analysis 👥")
+reply_pair_data = helper.analyze_reply_pairs(df)
+
+if reply_pair_data:
+    # Display top reply pairs
+    st.subheader("Top Reply Pairs")
+    
+    # Convert to DataFrame for display
+    pairs_df = pd.DataFrame(reply_pair_data['pair_counts'])
+    top_pairs = pairs_df.head(10)
+    
+    # Create a more readable display format
+    display_df = pd.DataFrame({
+        'Replier': top_pairs['replier'],
+        'Replied To': top_pairs['replied_to'],
+        'Count': top_pairs['count'],
+        'Percentage': top_pairs['percentage'].apply(lambda x: f"{x:.1f}%")
+    })
+    
+    st.dataframe(display_df)
+    
+    # Plot top reply pairs
+    fig = px.bar(top_pairs, 
+                 x='pair_text', y='count',
+                 title="Most Frequent Reply Pairs",
+                 color='count',
+                 color_continuous_scale='Viridis')
+    fig.update_layout(xaxis_tickangle=-45)
+    st.plotly_chart(fig)
+    
+    # Display who replies to whom the most
+    st.subheader("Who Replies to Whom the Most")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("Person who replies to each user the most:")
+        for user, replier_data in reply_pair_data['most_frequent_repliers'].items():
+            st.write(f"**{user}** is most frequently replied to by **{replier_data['replier']}** ({replier_data['count']} times)")
+    
+    with col2:
+        st.write("Person each user replies to the most:")
+        for user, replied_data in reply_pair_data['most_replied_to'].items():
+            st.write(f"**{user}** most frequently replies to **{replied_data['replied_to']}** ({replied_data['count']} times)")
+    
+    # Create a network graph of reply relationships
+    st.subheader("Reply Relationship Network")
+    
+    # Get top N pairs for each user to avoid overcrowding
+    top_n_per_user = 2
+    network_pairs = []
+    
+    for user in df['user'].unique():
+        if user == 'group_notification':
+            continue
+            
+        user_pairs = [p for p in reply_pair_data['pair_counts'] if p['replier'] == user]
+        if user_pairs:
+            top_user_pairs = sorted(user_pairs, key=lambda x: x['count'], reverse=True)[:top_n_per_user]
+            network_pairs.extend(top_user_pairs)
+    
+    # Create network nodes and edges
+    nodes = list(set([p['replier'] for p in network_pairs] + [p['replied_to'] for p in network_pairs]))
+    
+    # Create a network graph using plotly
+    edge_x = []
+    edge_y = []
+    edge_weights = []
+    
+    # Simple circular layout
+    node_positions = {}
+    n = len(nodes)
+    for i, node in enumerate(nodes):
+        angle = 2 * np.pi * i / n
+        node_positions[node] = (np.cos(angle), np.sin(angle))
+    
+    for pair in network_pairs:
+        x0, y0 = node_positions[pair['replier']]
+        x1, y1 = node_positions[pair['replied_to']]
+        
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+        edge_weights.append(pair['count'])
+    
+    # Create edges trace
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=1, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+    
+    # Create nodes trace
+    node_x = [node_positions[node][0] for node in nodes]
+    node_y = [node_positions[node][1] for node in nodes]
+    
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers+text',
+        text=nodes,
+        textposition="top center",
+        marker=dict(
+            showscale=True,
+            colorscale='YlGnBu',
+            size=15,
+            colorbar=dict(
+                thickness=15,
+                title='Node Connections',
+                xanchor='left',
+                titleside='right'
+            )
+        ),
+        hoverinfo='text')
+    
+    # Count connections for each node
+    node_connections = {node: 0 for node in nodes}
+    for pair in network_pairs:
+        node_connections[pair['replier']] += 1
+        node_connections[pair['replied_to']] += 1
+    
+    node_trace.marker.color = [node_connections[node] for node in nodes]
+    node_trace.text = [f"{node}<br># of connections: {node_connections[node]}" for node in nodes]
+    
+    # Create the figure
+    fig = go.Figure(data=[edge_trace, node_trace],
+                 layout=go.Layout(
+                    title="Reply Network",
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    
+    st.plotly_chart(fig)
+    
+    st.write("This network shows who replies to whom most frequently. Thicker lines indicate more frequent replies.")
+else:
+    st.info("Not enough data for reply pair analysis.")
+
+# Conversation Influence Analysis
+st.header("🌟 Conversation Influence Analysis 🌟")
+influence_data = helper.analyze_conversation_influence(df)
+
+if influence_data:
+    # Display most influential users
+    st.subheader("Most Influential Users")
+    
+    influence_df = pd.DataFrame(influence_data['most_influential'], 
+                               columns=['User', 'Influence Score'])
+    
+    fig = px.bar(influence_df.head(10), 
+                 x='User', y='Influence Score',
+                 title="Top Conversation Influencers",
+                 color='Influence Score',
+                 color_continuous_scale='Viridis')
+    st.plotly_chart(fig)
+    
+    # Display detailed metrics for top users
+    st.subheader("Influence Metrics for Top Users")
+    
+    top_users = [user for user, _ in influence_data['most_influential'][:5]]
+    metrics_df = pd.DataFrame([
+        {
+            'User': user,
+            'Messages': influence_data['user_metrics'][user]['messages'],
+            'Conversations': influence_data['user_metrics'][user]['conversation_count'],
+            'Responses Received': influence_data['user_metrics'][user]['responses_received'],
+            'Conversation Extensions': influence_data['user_metrics'][user]['conversation_extensions'],
+            'Conversation Revivals': influence_data['user_metrics'][user]['conversation_revival'],
+            'Responses per Message': f"{influence_data['user_metrics'][user]['avg_responses_per_message']:.2f}"
+        }
+        for user in top_users
+    ])
+    
+    st.dataframe(metrics_df)
+    
+    st.write("Influential users tend to receive more responses, extend conversations, and revive dead chats.")
+
+# Mood Shifter Analysis
+st.header("😊 Conversation Mood Shifters 😊")
+mood_data = helper.analyze_mood_shifters(df)
+
+if mood_data:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Top Mood Lifters")
+        if mood_data['mood_lifters']:
+            lifters_df = pd.DataFrame(mood_data['mood_lifters'], 
+                                     columns=['User', 'Positive Shifts', 'Positive Ratio'])
+            lifters_df['Positive Ratio'] = lifters_df['Positive Ratio'].apply(lambda x: f"{x*100:.1f}%")
+            st.dataframe(lifters_df)
+        else:
+            st.info("No significant mood lifters detected")
+    
+    with col2:
+        st.subheader("Top Mood Dampeners")
+        if mood_data['mood_dampeners']:
+            dampeners_df = pd.DataFrame(mood_data['mood_dampeners'], 
+                                       columns=['User', 'Negative Shifts', 'Negative Ratio'])
+            dampeners_df['Negative Ratio'] = dampeners_df['Negative Ratio'].apply(lambda x: f"{x*100:.1f}%")
+            st.dataframe(dampeners_df)
+        else:
+            st.info("No significant mood dampeners detected")
+    
+    # Plot overall mood shifting activity
+    shifters_df = pd.DataFrame(mood_data['top_shifters'][:10], 
+                              columns=['User', 'Total Shifts', 'Shift Rate'])
+    
+    fig = px.bar(shifters_df, 
+                 x='User', y='Total Shifts',
+                 title="Top Conversation Mood Shifters",
+                 color='Shift Rate',
+                 color_continuous_scale='RdBu')
+    st.plotly_chart(fig)
+    
+    st.write("Mood shifters change the emotional tone of conversations. Lifters make conversations more positive, while dampeners make them more negative.")
+
+# Conversation Compatibility Analysis
+st.header("❤️ Conversation Compatibility Analysis ❤️")
+compatibility_data = helper.analyze_conversation_compatibility(df)
+
+if compatibility_data:
+    # Display most compatible pairs
+    st.subheader("Most Compatible User Pairs")
+    
+    if compatibility_data['most_compatible']:
+        compatible_df = pd.DataFrame(compatibility_data['most_compatible'][:10], 
+                                    columns=['User 1', 'User 2', 'Compatibility Score'])
+        compatible_df['Pair'] = compatible_df.apply(lambda row: f"{row['User 1']} & {row['User 2']}", axis=1)
+        
+        fig = px.bar(compatible_df, 
+                     x='Pair', y='Compatibility Score',
+                     title="Most Compatible User Pairs",
+                     color='Compatibility Score',
+                     color_continuous_scale='Viridis')
+        fig.update_layout(xaxis_tickangle=-45)
+        st.plotly_chart(fig)
+        
+        # Create a compatibility matrix heatmap
+        st.subheader("Compatibility Matrix")
+        
+        # Get unique users from the compatible pairs
+        unique_users = set()
+        for user1, user2, _ in compatibility_data['most_compatible']:
+            unique_users.add(user1)
+            unique_users.add(user2)
+        
+        # Create matrix data
+        matrix_data = []
+        for user1 in unique_users:
+            row_data = []
+            for user2 in unique_users:
+                if user1 == user2:
+                    row_data.append(100)  # Perfect compatibility with self
+                else:
+                    # Find pair in compatibility data
+                    if user1 < user2:
+                        pair_key = f"{user1}_{user2}"
+                    else:
+                        pair_key = f"{user2}_{user1}"
+                    
+                    if pair_key in compatibility_data['user_pairs'] and compatibility_data['user_pairs'][pair_key]['direct_replies'] > 5:
+                        row_data.append(compatibility_data['user_pairs'][pair_key]['compatibility_score'])
+                    else:
+                        row_data.append(0)  # No significant interaction
+            
+            matrix_data.append(row_data)
+        
+        # Create heatmap
+        fig = px.imshow(matrix_data,
+                       x=list(unique_users),
+                       y=list(unique_users),
+                       color_continuous_scale='Viridis',
+                       title="User Compatibility Matrix")
+        
+        st.plotly_chart(fig)
+        
+        st.write("Higher compatibility scores indicate user pairs who interact frequently, respond quickly to each other, and share similar emotional tones in their messages.")
+    else:
+        st.info("Not enough interaction data to determine compatibility")
+else:
+    st.info("Not enough data for compatibility analysis")
+
+# AI Features Section
+st.header("🤖 AI-Powered Insights")
+
+# Add a tab interface for different AI features
+ai_tabs = st.tabs(["Personality Insights", "Conversation Summaries", "Relationship Analysis", "Activity Forecast"])
+
+with ai_tabs[0]:
+    st.subheader("Personality Insights")
+    
+    if st.button("Generate Personality Insights"):
+        with st.spinner("Analyzing personalities..."):
+            personality_data = helper.analyze_personality(df)
+            
+            # Display personality radar charts
+            for user, traits in personality_data.items():
+                st.write(f"### {user}'s Personality Profile")
+                
+                # Create radar chart data
+                categories = list(traits.keys())
+                values = list(traits.values())
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatterpolar(
+                    r=values,
+                    theta=categories,
+                    fill='toself',
+                    name=user
+                ))
+                
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 100]
+                        )
+                    ),
+                    showlegend=False
+                )
+                
+                st.plotly_chart(fig)
+                
+                # Add personality description
+                st.write(generate_personality_description(traits))
+
+with ai_tabs[1]:
+    st.subheader("Conversation Summaries")
+    
+    if st.button("Generate Conversation Summaries"):
+        with st.spinner("Summarizing conversations..."):
+            summaries = helper.summarize_conversations(df)
+            
+            for conv_code, data in summaries.items():
+                with st.expander(f"Conversation from {data['date_range'][0].date()} ({data['message_count']} messages)"):
+                    st.write(f"**Summary:** {data['summary']}")
+                    st.write(f"**Participants:** {', '.join(data['participants'])}")
+                    
+                    # Add a button to view the full conversation
+                    if st.button(f"View Full Conversation", key=f"view_{conv_code}"):
+                        st.dataframe(df[df['Conv code'] == conv_code][['date', 'user', 'message']])
+
+with ai_tabs[2]:
+    st.subheader("Relationship Analysis")
+    
+    # Let user select two participants
+    col1, col2 = st.columns(2)
+    with col1:
+        user1 = st.selectbox("Select first user", df['user'].unique())
+    with col2:
+        user2 = st.selectbox("Select second user", [u for u in df['user'].unique() if u != user1])
+    
+    if st.button("Analyze Relationship"):
+        with st.spinner("Analyzing relationship..."):
+            relationship_data = helper.analyze_relationship(df, user1, user2)
+            
+            # Display relationship metrics
+            st.write(f"### Relationship between {user1} and {user2}")
+            
+            # Create metrics row
+            metric_cols = st.columns(4)
+            with metric_cols[0]:
+                st.metric("Compatibility Score", f"{relationship_data['compatibility_score']:.1f}/100")
+            with metric_cols[1]:
+                st.metric("Conversation Count", relationship_data['conversation_count'])
+            with metric_cols[2]:
+                st.metric("Avg Response Time", f"{relationship_data['avg_response_time']:.1f} min")
+            with metric_cols[3]:
+                st.metric("Sentiment Alignment", f"{relationship_data['sentiment_alignment']:.1f}/10")
+            
+            # Display conversation timeline
+            st.write("#### Conversation Timeline")
+            fig = px.line(relationship_data['timeline'], x='date', y='message_count', 
+                         title="Message Frequency Over Time")
+            st.plotly_chart(fig)
+            
+            # Display common topics
+            st.write("#### Common Topics")
+            topic_df = pd.DataFrame(relationship_data['common_topics'], 
+                                   columns=['Topic', 'Frequency'])
+            fig = px.bar(topic_df, x='Topic', y='Frequency', 
+                        title="Topics Discussed")
+            st.plotly_chart(fig)
+
+with ai_tabs[3]:
+    st.subheader("Future Activity Prediction")
+    
+    # Let user select forecast period
+    forecast_months = st.slider("Forecast months ahead", min_value=1, max_value=12, value=3)
+    
+    if st.button("Generate Activity Forecast"):
+        with st.spinner("Analyzing message patterns and generating forecast..."):
+            forecast_fig, conclusions = helper.predict_future_activity(df, forecast_months)
+            
+            if forecast_fig:
+                st.plotly_chart(forecast_fig, use_container_width=True)
+                
+                st.info("This forecast is based on historical message patterns, including daily, weekly, and monthly trends. The shaded area represents the prediction uncertainty range.")
+                
+                # Display textual conclusions
+                if conclusions:
+                    st.write("## Forecast Conclusions")
+                    
+                    # Overall trend
+                    st.write("### Overall Trend")
+                    st.write(conclusions["trend"]["description"])
+                    
+                    # Message volume
+                    st.write("### Message Volume")
+                    st.write(conclusions["volume"]["description"])
+                    
+                    # Activity patterns
+                    st.write("### Activity Patterns")
+                    st.write(conclusions["activity_patterns"]["description"])
+                    
+                    # Peak activity
+                    st.write("### Peak Activity")
+                    st.write(conclusions["peak"]["description"])
+                    
+                    # Historical comparison
+                    st.write("### Comparison to Historical Data")
+                    st.write(conclusions["historical_comparison"]["description"])
+                    
+                    # Seasonality
+                    st.write("### Seasonality")
+                    st.write(conclusions["seasonality"]["description"])
+                
+                # Add some insights about the forecast methodology
+                with st.expander("About the Forecast Methodology"):
+                    st.write("This forecast uses Facebook's Prophet model, which is designed for time series forecasting with strong seasonal patterns.")
+                    st.write("The model analyzes:")
+                    st.write("- Weekly patterns (like weekend vs weekday activity)")
+                    st.write("- Monthly trends (increasing or decreasing engagement)")
+                    st.write("- Special events or holidays that might affect messaging patterns")
+                    st.write("- Long-term growth or decline trends")
 
 
 
