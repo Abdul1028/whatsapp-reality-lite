@@ -15,7 +15,6 @@ import preprocessor
 import nltk
 import ssl
 
-
 #Layout
 st.set_page_config(
     page_title="Whatsapp Chat Analyzer",
@@ -32,11 +31,9 @@ chat_history = []
 #custom css for button and webview
 st.markdown("""
     <style>
-    
     .big-font {
     font-size:80px !important;
 }
-
      .message-container {
         display: flex;
         flex-direction: column;
@@ -113,16 +110,12 @@ st.markdown("""
 
     </style>
 """, unsafe_allow_html=True)
-
 github_link = ""
 export_file_path = "plots_report.pdf"
-
-
 @st.cache_data
 def load_lottiefile(filepath: str):
     with open(filepath,"r") as f:
         return json.load(f)
-
 
 def display_chat_message(sender, message, sentiment):
     st.markdown(
@@ -136,15 +129,14 @@ with st.sidebar:
     selected = option_menu( 'Chat Analyzer', ["Intro", 'Search','About','Login'],icons=['play-btn','search','info-circle','gear'],menu_icon='intersect', default_index=0)
     lottie = load_lottiefile("lottie_jsons/sidebar.json")
     st_lottie(lottie, key='loc')
-
 try:
     _create_unverified_https_context = ssl._create_unverified_context
 except AttributeError:
     pass
 else:
     ssl._create_default_https_context = _create_unverified_https_context
-
 nltk.download('vader_lexicon')
+
 
 # Add this function definition at the top of main.py, before it's used
 def generate_personality_description(traits):
@@ -197,16 +189,12 @@ if selected == "Intro":
     c1.subheader("""Discover trends, analyse your chat history and judge your friends!""")
     c1.markdown(
         f"Dont worry, we wont peek, we're not about that, in fact, you can check the code in here: [link]({github_link})")
-
     uploaded_file = c1.file_uploader(label="""Upload your Whatsapp chat, don't worry, we won't peek""",
                                      key="notniq")
-
-
-
+    
     with c2:
         lottie = load_lottiefile("lottie_jsons/chat_icon.json")
         st_lottie(lottie, key='loc2')
-
 
     if uploaded_file is not None:
         bytes_data = uploaded_file.getvalue()
@@ -290,7 +278,7 @@ if selected == "Intro":
                 with col4:
                     st.header("Links Shared")
                     st.metric(" ",num_links)
-
+                    
                 # working but shows a lot of graphs
                 # figures = helper.calculate_monthly_sentiment_trends(selected_user, df)
                 # # Display the figures in Streamlit
@@ -483,6 +471,9 @@ if selected == "Intro":
                 if median_delay_per_user is not None :
                     st.write(f"Median Reply Delay for {selected_user}: {median_delay_per_user:.2f} minutes")
 
+
+                #advanced analysis starts here
+
                 # Conversation Momentum Analysis
                 st.header("Conversation Momentum Analysis")
                 momentum_data = helper.analyze_conversation_momentum(df)
@@ -526,6 +517,7 @@ if selected == "Intro":
                         st.plotly_chart(fig)
                 else:
                     st.info("Not enough conversation data for momentum analysis.")
+
 
                 # Topic Switching Analysis
                 st.header("Topic Switching Analysis")
