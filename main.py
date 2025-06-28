@@ -261,7 +261,6 @@ if selected == "Intro":
             with placeholder.container():
 
 
-
                 # Stats Area
                 num_messages, words, num_media_messages, num_links = helper.fetch_stats(selected_user, df)
                 st.title("Top Statistics")
@@ -299,9 +298,10 @@ if selected == "Intro":
 
                 st.write("Time Analysis")
 
-                selected = option_menu('Select Time period', ["Monthly", 'Daily', 'Weekly',''],
+                selected = option_menu('Select Time period', ["Monthly", 'Daily', 'Weekly'],
                                         menu_icon='intersect',
-                                       default_index=3,orientation="horizontal")
+                                        icons=['calendar-month','calendar-day','calendar-week'],
+                                       default_index=2,orientation="horizontal")
 
                 if selected == "Monthly":
                     # monthly timeline
@@ -315,17 +315,18 @@ if selected == "Intro":
                     fig = helper.daily_timeline(selected_user, df)
                     st.plotly_chart(fig)
 
+                elif selected == "Weekly":
+                    st.title("Weekly Timeline")
+                    fig = helper.week_activity_map(selected_user, df)
+                    st.plotly_chart(fig)
+
                 else:
                     st.info("Select the analysis time period")
 
-                # st.header("Most busy day")
-                # fig = helper.week_activity_map(selected_user, df)
-                # st.plotly_chart(fig)
 
                 st.header("Most busy month")
                 fig= helper.month_activity_map(selected_user, df)
                 st.plotly_chart(fig)
-
 
 
                 # finding the busiest users in the group(Group level)
@@ -333,26 +334,25 @@ if selected == "Intro":
                     st.title('Most Busy Users')
                     fig, new_df = helper.most_busy_users(df)
                     st.plotly_chart(fig)
-                    fig.write_image("exports/charts/fig1.png")
+                    helper.safe_write_image(fig, "exports/charts/fig1.png")
 
-
-
-                    st.dataframe(new_df)
 
                 ###End of sentimental analysis
                 st.title("Busiest Hours")
-                helper.busiest_hours_analysis(df)
+                busiest_hours = helper.busiest_hours_analysis(df)
+                st.bar_chart(busiest_hours)
 
+
+
+                # Wordcloud
                 st.title("Wordcloudd")
-
                 wordcloud_fig = helper.create_plotly_wordcloud(selected_user, df)
                 st.plotly_chart(wordcloud_fig)
 
 
-                # most common words
+                #Most common words
                 fig = helper.most_common_words(selected_user, df)
                 st.title('Most common words')
-
                 st.plotly_chart(fig)
 
                 # emoji analysis
@@ -360,12 +360,10 @@ if selected == "Intro":
                 fig = helper.emoji_helper(selected_user, df)
                 st.plotly_chart(fig)
 
-                fig = helper.show_average_reply_time(df)
-                st.plotly_chart(fig)
-
 
                 ##Start of sentimental analysis
                 # Perform sentiment analysis on the selected messages
+                st.title("Sentiment Analysis")
                 positive_fig, negative_fig = helper.analyze_and_plot_sentiment(selected_user, df)
                 # Display the positive and negative sentiment figures
                 st.plotly_chart(positive_fig)
@@ -375,22 +373,22 @@ if selected == "Intro":
 
                 user_sentiment_percentages, most_positive, least_positive = helper.calculate_sentiment_percentage(
                     selected_user, df)
-                for user, percentages in user_sentiment_percentages.items():
-                    st.write(f"User: {user}")
-                    st.write(f"Positivity Percentage: ", percentages[0])
-                    st.write(f"Negativity Percentage: ", percentages[1])
-                    st.write("---")  # Separator between users
+                
+                with st.expander("User Sentiment Percentages for all users"):
+                    for user, percentages in user_sentiment_percentages.items():
+                        st.write(f"User: {user}")
+                        st.write(f"Positivity Percentage: ", percentages[0])
+                        st.write(f"Negativity Percentage: ", percentages[1])
+                        st.write("---")  
+                
 
                 st.write("Most positive User: ", most_positive)
                 st.write("Least positive: ", least_positive)
-
 
                 st.info("Sentimental trend followed by you in time period of months")
 
                 f = helper.calculate_monthly_sentiment_trend(df)
                 st.plotly_chart(f)
-
-
 
                 c_11, c_12 = st.columns((1, 1))
                 fig1, most_messages_winner = helper.message_count_aggregated_graph(df)
@@ -414,42 +412,32 @@ if selected == "Intro":
                     f"This is how many messages (on average) your conversations had, the more of them there are, the more messages you guys exchanged everytime one of you started the convo!")
                 st.plotly_chart(fig)
 
-                c1, c2 = st.columns(2)
-
-                emoji_df = helper.top_emojis_used(selected_user, df)
-
-                with c1:
-                    st.dataframe(emoji_df)
-
-                with c2:
-                    helper.message_count_by_month(selected_user, df)
-
-                fig = helper.greeting_farewell_analysis(selected_user, df)
-                st.plotly_chart(fig)
-
-
+       
                 max_user, max_time = helper.longest_reply_user(df)
 
-                st.write(max_user, " takes the most time to reply wiz ", max_time)
-                user,time,msg,reply = helper.longest_reply_user2(df)
-                st.write(f"User with longest reply time: {user}")
-                st.write(f"Longest reply time (minutes): {time}")
-                st.write(f"Message to which the user replied the most late: {msg}")
-                st.write(f"Replied message: {reply}")
+                st.write(max_user, " takes the most time to reply wiz ",max_time)
 
-                user, time, msg, reply = helper.top5_late_replies(df)
-                st.write(f"User with longest reply time: {user}")
-                st.write(f"Longest reply time (minutes): {time}")
-                st.write(f"Message to which the user replied the most late: {msg}")
-                st.write(f"Replied message: {reply}")
+                #TODO: add this back in
+                # user,time,msg,reply = helper.longest_reply_user2(df)
+                # st.write(f"User with longest reply time: {user}")
+                # st.write(f"Longest reply time (minutes): {time}")
+                # st.write(f"Message to which the user replied the most late: {msg}")
+                # st.write(f"Replied message: {reply}")
 
-                user, time, msg, reply = helper.top_texts_late_replies(df)
-                st.write(f"User with longest reply time: {user}")
-                st.write(f"Longest reply time (minutes): {time}")
-                st.write(f"Message to which the user replied the most late: {msg}")
-                st.write(f"Replied message: {reply}")
+                # user, time, msg, reply = helper.top5_late_replies(df)
+                # st.write(f"User with longest reply time: {user}")
+                # st.write(f"Longest reply time (minutes): {time}")
+                # st.write(f"Message to which the user replied the most late: {msg}")
+                # st.write(f"Replied message: {reply}")
 
-                # Add the new function call here
+                # user, time, msg, reply = helper.top_texts_late_replies(df)
+                # st.write(f"User with longest reply time: {user}")
+                # st.write(f"Longest reply time (minutes): {time}")
+                # st.write(f"Message to which the user replied the most late: {msg}")
+                # st.write(f"Replied message: {reply}")
+
+                # Advanced Analysis starts here
+
                 st.subheader("Average Late Reply Time Analysis")
                 late_reply_fig, avg_late_reply_times, overall_avg = helper.calculate_average_late_reply_time(df)
                 st.plotly_chart(late_reply_fig)
@@ -458,14 +446,6 @@ if selected == "Intro":
                 # Display the data in a table
                 st.write("Average Late Reply Times by User:")
                 st.dataframe(avg_late_reply_times)
-
-                helper.message_length_analysis(selected_user, df)
-
-
-
-                max_idle_date,max_idle_time = helper.most_idle_date_time(df)
-                st.write(f"The date(s) when the group was idle for the most time:")
-                st.write(f"Date: {max_idle_date}, Total Idle Time : {max_idle_time / 86400 :.2f} days")
 
                 median_delay_per_user = helper.median_delay_between_conversations(selected_user,df)
                 if median_delay_per_user is not None :
@@ -502,19 +482,7 @@ if selected == "Intro":
                         st.write("Users with positive momentum tend to keep conversations engaging and accelerating, "
                                  "while negative momentum indicates conversations that slow down.")
 
-                    # Plot conversation metrics
-                    conv_metrics_df = momentum_data['conversation_metrics']
-                    if not conv_metrics_df.empty:
-                        fig = px.scatter(conv_metrics_df,
-                                         x='duration_minutes', y='message_rate',
-                                         size='message_count', color='momentum',
-                                         hover_name='conv_code',
-                                         title="Conversation Dynamics",
-                                         labels={'duration_minutes': 'Duration (minutes)',
-                                                 'message_rate': 'Messages per Minute',
-                                                 'momentum': 'Momentum'},
-                                         color_continuous_scale='RdBu')
-                        st.plotly_chart(fig)
+                    
                 else:
                     st.info("Not enough conversation data for momentum analysis.")
 
@@ -544,6 +512,7 @@ if selected == "Intro":
                             "Users who frequently switch topics may be driving the conversation in new directions.")
                 else:
                     st.info("Not enough conversation data for topic switching analysis.")
+                    
 
                 # Initiator-Responder Dynamics
                 st.header("Conversation Initiator-Responder Dynamics")
@@ -596,155 +565,7 @@ if selected == "Intro":
                 else:
                     st.info("Not enough conversation data for initiator-responder analysis.")
 
-                # Red Flag/Green Flag Analysis
-                st.header("🚩 Red Flag / Green Flag Analysis 🚩")
-                flag_data = helper.analyze_red_green_flags(df)
-
-                if flag_data:
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.subheader("Top Red Flag Users")
-                        red_flag_df = pd.DataFrame(flag_data['most_red_flags'],
-                                                   columns=['User', 'Red Flag Count'])
-                        st.dataframe(red_flag_df.head(5))
-
-                        # Plot red flag types
-                        red_types_df = pd.DataFrame(list(flag_data['all_red_flags'].items()),
-                                                    columns=['Flag Type', 'Count'])
-                        fig = px.bar(red_types_df.sort_values('Count', ascending=False),
-                                     x='Flag Type', y='Count',
-                                     title="Most Common Red Flags",
-                                     color='Count',
-                                     color_continuous_scale='Reds')
-                        st.plotly_chart(fig)
-
-                    with col2:
-                        st.subheader("Top Green Flag Users")
-                        green_flag_df = pd.DataFrame(flag_data['most_green_flags'],
-                                                     columns=['User', 'Green Flag Count'])
-                        st.dataframe(green_flag_df.head(5))
-
-                        # Plot green flag types
-                        green_types_df = pd.DataFrame(list(flag_data['all_green_flags'].items()),
-                                                      columns=['Flag Type', 'Count'])
-                        fig = px.bar(green_types_df.sort_values('Count', ascending=False),
-                                     x='Flag Type', y='Count',
-                                     title="Most Common Green Flags",
-                                     color='Count',
-                                     color_continuous_scale='Greens')
-                        st.plotly_chart(fig)
-
-                    # Plot green-to-red ratio
-                    ratio_df = pd.DataFrame(flag_data['best_ratios'],
-                                            columns=['User', 'Green-to-Red Ratio'])
-                    fig = px.bar(ratio_df.head(10),
-                                 x='User', y='Green-to-Red Ratio',
-                                 title="Green-to-Red Flag Ratio by User",
-                                 color='Green-to-Red Ratio',
-                                 color_continuous_scale='RdYlGn')
-                    st.plotly_chart(fig)
-
-                    st.write("A higher green-to-red ratio indicates more positive communication patterns.")
-
-                # Vibe Check Analysis
-                st.header("✨ GenZ Vibe Check ✨")
-                vibe_data = helper.analyze_vibe_check(df)
-
-                if vibe_data:
-                    # Display overall vibe score
-                    st.metric("Overall Chat Vibe Score", f"{vibe_data['overall_score']:.1f}")
-
-                    # Create vibe score gauge chart
-                    fig = go.Figure(go.Indicator(
-                        mode="gauge+number",
-                        value=vibe_data['overall_score'],
-                        domain={'x': [0, 1], 'y': [0, 1]},
-                        title={'text': "Chat Vibe Meter"},
-                        gauge={
-                            'axis': {'range': [-100, 100]},
-                            'bar': {'color': "darkblue"},
-                            'steps': [
-                                {'range': [-100, -50], 'color': "red"},
-                                {'range': [-50, 0], 'color': "orange"},
-                                {'range': [0, 50], 'color': "lightgreen"},
-                                {'range': [50, 100], 'color': "green"}
-                            ],
-                            'threshold': {
-                                'line': {'color': "black", 'width': 4},
-                                'thickness': 0.75,
-                                'value': vibe_data['overall_score']
-                            }
-                        }
-                    ))
-                    st.plotly_chart(fig)
-
-                    # Plot user vibe scores
-                    vibe_scores_df = pd.DataFrame([(user, data['vibe_score'])
-                                                   for user, data in vibe_data['vibe_scores'].items()],
-                                                  columns=['User', 'Vibe Score'])
-                    vibe_scores_df = vibe_scores_df.sort_values('Vibe Score', ascending=False)
-
-                    fig = px.bar(vibe_scores_df,
-                                 x='User', y='Vibe Score',
-                                 title="User Vibe Scores",
-                                 color='Vibe Score',
-                                 color_continuous_scale='RdBu',
-                                 range_color=[-100, 100])
-                    st.plotly_chart(fig)
-
-                    st.write("Higher vibe scores indicate more positive GenZ communication patterns.")
-
-                # GenZ Slang Analysis
-                st.header("💯 GenZ Slang Analysis 💯")
-                slang_data = helper.analyze_genz_slang(df)
-
-                if slang_data:
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.subheader("Top Slang Users")
-                        slang_users_df = pd.DataFrame(slang_data['most_slang_users'],
-                                                      columns=['User', 'Slang Count'])
-                        st.dataframe(slang_users_df.head(5))
-
-                    with col2:
-                        st.subheader("Highest Slang Density")
-                        density_df = pd.DataFrame(slang_data['highest_density_users'],
-                                                  columns=['User', 'Slang per Message'])
-                        st.dataframe(density_df.head(5))
-
-                    # Plot slang categories
-                    categories_df = pd.DataFrame(list(slang_data['category_totals'].items()),
-                                                 columns=['Category', 'Count'])
-                    fig = px.pie(categories_df,
-                                 values='Count', names='Category',
-                                 title="GenZ Slang Categories",
-                                 color_discrete_sequence=px.colors.sequential.Plasma_r)
-                    st.plotly_chart(fig)
-
-                    # Plot user slang breakdown
-                    user_slang_data = []
-                    for user, categories in slang_data['user_slang'].items():
-                        for category, count in categories.items():
-                            if count > 0:  # Only include non-zero counts
-                                user_slang_data.append({
-                                    'User': user,
-                                    'Category': category,
-                                    'Count': count
-                                })
-
-                    user_slang_df = pd.DataFrame(user_slang_data)
-                    if not user_slang_df.empty:
-                        fig = px.bar(user_slang_df,
-                                     x='User', y='Count', color='Category',
-                                     title="Slang Usage by User and Category",
-                                     barmode='stack')
-                        st.plotly_chart(fig)
-
-                    st.write("This analysis shows who uses the most GenZ slang and which types they prefer.")
-
-                # Reply Pair Analysis
+                        # Reply Pair Analysis
                 st.header("👥 Reply Pair Analysis 👥")
                 reply_pair_data = helper.analyze_reply_pairs(df)
 
@@ -887,6 +708,144 @@ if selected == "Intro":
                 else:
                     st.info("Not enough data for reply pair analysis.")
 
+
+
+                # Red Flag/Green Flag Analysis
+                st.header("🚩 Red Flag / Green Flag Analysis 🚩")
+                flag_data = helper.analyze_red_green_flags(df)
+
+                if flag_data:
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.subheader("Top Red Flag Users")
+                        red_flag_df = pd.DataFrame(flag_data['most_red_flags'],
+                                                   columns=['User', 'Red Flag Count'])
+                        st.dataframe(red_flag_df.head(5))
+
+                        # Plot red flag types (less data to show this)
+                        # red_types_df = pd.DataFrame(list(flag_data['all_red_flags'].items()),
+                        #                             columns=['Flag Type', 'Count'])
+                        # fig = px.bar(red_types_df.sort_values('Count', ascending=False),
+                        #              x='Flag Type', y='Count',
+                        #              title="Most Common Red Flags",
+                        #              color='Count',
+                        #              color_continuous_scale='Reds')
+                        # st.plotly_chart(fig)
+
+                    with col2:
+                        st.subheader("Top Green Flag Users")
+                        green_flag_df = pd.DataFrame(flag_data['most_green_flags'],
+                                                     columns=['User', 'Green Flag Count'])
+                        st.dataframe(green_flag_df.head(5))
+
+                        # Plot green flag types (less data to show this)
+                        # green_types_df = pd.DataFrame(list(flag_data['all_green_flags'].items()),
+                        #                               columns=['Flag Type', 'Count'])
+                        # fig = px.bar(green_types_df.sort_values('Count', ascending=False),
+                        #              x='Flag Type', y='Count',
+                        #              title="Most Common Green Flags",
+                        #              color='Count',
+                        #              color_continuous_scale='Greens')
+                        # st.plotly_chart(fig)
+
+                    # Plot green-to-red ratio
+                    ratio_df = pd.DataFrame(flag_data['best_ratios'],
+                                            columns=['User', 'Green-to-Red Ratio'])
+                    fig = px.bar(ratio_df.head(10),
+                                 x='User', y='Green-to-Red Ratio',
+                                 title="Green-to-Red Flag Ratio by User",
+                                 color='Green-to-Red Ratio',
+                                 color_continuous_scale='RdYlGn')
+                    st.plotly_chart(fig)
+
+                    st.write("A higher green-to-red ratio indicates more positive communication patterns.")
+
+                # Vibe Check Analysis
+                st.header("✨ GenZ Vibe Check ✨")
+                vibe_data = helper.analyze_vibe_check(df)
+
+                if vibe_data:
+                    # Display overall vibe score
+                    st.metric("Overall Chat Vibe Score", f"{vibe_data['overall_score']:.1f}")
+
+                    # Create vibe score gauge chart
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=vibe_data['overall_score'],
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        title={'text': "Chat Vibe Meter"},
+                        gauge={
+                            'axis': {'range': [-100, 100]},
+                            'bar': {'color': "darkblue"},
+                            'steps': [
+                                {'range': [-100, -50], 'color': "red"},
+                                {'range': [-50, 0], 'color': "orange"},
+                                {'range': [0, 50], 'color': "lightgreen"},
+                                {'range': [50, 100], 'color': "green"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "black", 'width': 4},
+                                'thickness': 0.75,
+                                'value': vibe_data['overall_score']
+                            }
+                        }
+                    ))
+                    st.plotly_chart(fig)
+
+                    # Plot user vibe scores
+                    vibe_scores_df = pd.DataFrame([(user, data['vibe_score'])
+                                                   for user, data in vibe_data['vibe_scores'].items()],
+                                                  columns=['User', 'Vibe Score'])
+                    vibe_scores_df = vibe_scores_df.sort_values('Vibe Score', ascending=False)
+
+                    fig = px.bar(vibe_scores_df,
+                                 x='User', y='Vibe Score',
+                                 title="User Vibe Scores",
+                                 color='Vibe Score',
+                                 color_continuous_scale='RdBu',
+                                 range_color=[-100, 100])
+                    st.plotly_chart(fig)
+
+                    st.write("Higher vibe scores indicate more positive GenZ communication patterns.")
+
+                # GenZ Slang Analysis
+                st.header("💯 GenZ Slang Analysis 💯")
+                slang_data = helper.analyze_genz_slang(df)
+
+                if slang_data:
+                    # Plot slang categories
+                    categories_df = pd.DataFrame(list(slang_data['category_totals'].items()),
+                                                 columns=['Category', 'Count'])
+                    fig = px.pie(categories_df,
+                                 values='Count', names='Category',
+                                 title="GenZ Slang Categories",
+                                 color_discrete_sequence=px.colors.sequential.Plasma_r)
+                    st.plotly_chart(fig)
+
+                    # Plot user slang breakdown
+                    user_slang_data = []
+                    for user, categories in slang_data['user_slang'].items():
+                        for category, count in categories.items():
+                            if count > 0:  # Only include non-zero counts
+                                user_slang_data.append({
+                                    'User': user,
+                                    'Category': category,
+                                    'Count': count
+                                })
+
+                    user_slang_df = pd.DataFrame(user_slang_data)
+                    if not user_slang_df.empty:
+                        fig = px.bar(user_slang_df,
+                                     x='User', y='Count', color='Category',
+                                     title="Slang Usage by User and Category",
+                                     barmode='stack')
+                        st.plotly_chart(fig)
+
+                    st.write("This analysis shows who uses the most GenZ slang and which types they prefer.")
+
+        
+
                 # Conversation Influence Analysis
                 st.header("🌟 Conversation Influence Analysis 🌟")
                 influence_data = helper.analyze_conversation_influence(df)
@@ -927,49 +886,7 @@ if selected == "Intro":
                     st.write(
                         "Influential users tend to receive more responses, extend conversations, and revive dead chats.")
 
-                # Mood Shifter Analysis
-                st.header("😊 Conversation Mood Shifters 😊")
-                mood_data = helper.analyze_mood_shifters(df)
-
-                if mood_data:
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.subheader("Top Mood Lifters")
-                        if mood_data['mood_lifters']:
-                            lifters_df = pd.DataFrame(mood_data['mood_lifters'],
-                                                      columns=['User', 'Positive Shifts', 'Positive Ratio'])
-                            lifters_df['Positive Ratio'] = lifters_df['Positive Ratio'].apply(
-                                lambda x: f"{x * 100:.1f}%")
-                            st.dataframe(lifters_df)
-                        else:
-                            st.info("No significant mood lifters detected")
-
-                    with col2:
-                        st.subheader("Top Mood Dampeners")
-                        if mood_data['mood_dampeners']:
-                            dampeners_df = pd.DataFrame(mood_data['mood_dampeners'],
-                                                        columns=['User', 'Negative Shifts', 'Negative Ratio'])
-                            dampeners_df['Negative Ratio'] = dampeners_df['Negative Ratio'].apply(
-                                lambda x: f"{x * 100:.1f}%")
-                            st.dataframe(dampeners_df)
-                        else:
-                            st.info("No significant mood dampeners detected")
-
-                    # Plot overall mood shifting activity
-                    shifters_df = pd.DataFrame(mood_data['top_shifters'][:10],
-                                               columns=['User', 'Total Shifts', 'Shift Rate'])
-
-                    fig = px.bar(shifters_df,
-                                 x='User', y='Total Shifts',
-                                 title="Top Conversation Mood Shifters",
-                                 color='Shift Rate',
-                                 color_continuous_scale='RdBu')
-                    st.plotly_chart(fig)
-
-                    st.write(
-                        "Mood shifters change the emotional tone of conversations. Lifters make conversations more positive, while dampeners make them more negative.")
-
+     
                 # Conversation Compatibility Analysis
                 st.header("❤️ Conversation Compatibility Analysis ❤️")
                 compatibility_data = helper.analyze_conversation_compatibility(df)
@@ -991,50 +908,6 @@ if selected == "Intro":
                                      color_continuous_scale='Viridis')
                         fig.update_layout(xaxis_tickangle=-45)
                         st.plotly_chart(fig)
-
-                        # Create a compatibility matrix heatmap
-                        st.subheader("Compatibility Matrix")
-
-                        # Get unique users from the compatible pairs
-                        unique_users = set()
-                        for user1, user2, _ in compatibility_data['most_compatible']:
-                            unique_users.add(user1)
-                            unique_users.add(user2)
-
-                        # Create matrix data
-                        matrix_data = []
-                        for user1 in unique_users:
-                            row_data = []
-                            for user2 in unique_users:
-                                if user1 == user2:
-                                    row_data.append(100)  # Perfect compatibility with self
-                                else:
-                                    # Find pair in compatibility data
-                                    if user1 < user2:
-                                        pair_key = f"{user1}_{user2}"
-                                    else:
-                                        pair_key = f"{user2}_{user1}"
-
-                                    if pair_key in compatibility_data['user_pairs'] and \
-                                            compatibility_data['user_pairs'][pair_key]['direct_replies'] > 5:
-                                        row_data.append(
-                                            compatibility_data['user_pairs'][pair_key]['compatibility_score'])
-                                    else:
-                                        row_data.append(0)  # No significant interaction
-
-                            matrix_data.append(row_data)
-
-                        # Create heatmap
-                        fig = px.imshow(matrix_data,
-                                        x=list(unique_users),
-                                        y=list(unique_users),
-                                        color_continuous_scale='Viridis',
-                                        title="User Compatibility Matrix")
-
-                        st.plotly_chart(fig)
-
-                        st.write(
-                            "Higher compatibility scores indicate user pairs who interact frequently, respond quickly to each other, and share similar emotional tones in their messages.")
                     else:
                         st.info("Not enough interaction data to determine compatibility")
                 else:
@@ -1042,8 +915,6 @@ if selected == "Intro":
 
                 # AI Features Section
                 st.header("🤖 AI-Powered Insights")
-
-                # Add a tab interface for different AI features
                 ai_tabs = st.tabs(
                     ["Personality Insights", "Conversation Summaries", "Relationship Analysis", "Activity Forecast"])
 
@@ -1198,7 +1069,7 @@ if selected == "Intro":
                                     st.write("- Special events or holidays that might affect messaging patterns")
                                     st.write("- Long-term growth or decline trends")
 
-                # double_text_count = helper.double_text_counts(selected_user,df)
+                # double_text_count = helper.double_text_counts(selected_user,df) //wrong analysis
                 # st.write(double_text_count)
 
                 # if st.button("Export all data"):
@@ -1207,17 +1078,24 @@ if selected == "Intro":
                 #         dl_button = download_button(f.read(), 'exported_data.pdf', 'Download your data!')
                 #         st.markdown(dl_button, unsafe_allow_html=True)
 
-                if st.button("Export all data"):
-                    if "user" in st.session_state:
-                        with st.spinner("Exporting data..."):
-                            helper.export(selected_user, df)
-                        with open(export_file_path, 'r') as f:
-                            dl_button = download_button(f.read(), 'exported_data.pdf', 'Download your data!')
-                            st.markdown(dl_button, unsafe_allow_html=True)
-                            st.success("You can Download your data now!")
-                    else:
-                        st.error("You need to login to export your data please login! :)")
+                # if st.button("Export all data"):
+                #     if "user" in st.session_state:
+                #         with st.spinner("Exporting data..."):
+                #             helper.export(selected_user, df)
+                #         with open(export_file_path, 'r') as f:
+                #             dl_button = download_button(f.read(), 'exported_data.pdf', 'Download your data!')
+                #             st.markdown(dl_button, unsafe_allow_html=True)
+                #             st.success("You can Download your data now!")
+                #     else:
+                #         st.error("You need to login to export your data please login! :)")
 
+                if st.button("Export all data"):
+                    with st.spinner("Exporting data..."):
+                        helper.export(selected_user, df)
+                    with open(export_file_path, 'r') as f:
+                        dl_button = download_button(f.read(), 'exported_data.pdf', 'Download your data!')
+                        st.markdown(dl_button, unsafe_allow_html=True)
+                        st.success("You can Download your data now!")
 
 
         if selected_participant_for_displaying_messsage:
@@ -1269,5 +1147,3 @@ if selected == "Intro":
                     message = group['message']
                     sentiment = helper.analyze_sentiment(message)  # assuming you have a helper function
                     display_chat_message(sender, message, sentiment)
-
-# Add after the existing analyses

@@ -23,6 +23,8 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import re
 import random
+import warnings
+from datetime import datetime, timedelta
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -415,7 +417,7 @@ def emoji_helper(selected_user,df):
     fig = px.pie(emoji_df.head(8), labels={'0': 'Emoji', '1': 'Frequency'}, values=1, names=0,
                  title="Emoji Distribution")
 
-    fig.write_image("exports/charts/emojis.png")
+    safe_write_image(fig, "exports/charts/emojis.png")
     return fig
 
 def monthly_timeline(selected_user, df):
@@ -661,7 +663,7 @@ def month_activity_map(selected_user,df):
     fig = px.bar(busy_month, x=busy_month.index, y=busy_month.values, color=busy_month.values,
                  color_continuous_scale='Viridis')
     fig.update_layout(xaxis_tickangle=-45)
-    fig.write_image("exports/charts/month_activity.png")
+    safe_write_image(fig, "exports/charts/month_activity.png")
     return fig
 
 def activity_heatmap(selected_user,df):
@@ -688,21 +690,15 @@ def message_length_analysis(selected_participant,df):
     average_length = filtered_df['message_length'].mean()
     st.write(f"Average Message Length for {selected_participant}: {average_length:.2f}")
 
-
-# Function for busiest hours analysis
 def busiest_hours_analysis(df):
     busiest_hours = df['hour'].value_counts()
-    st.bar_chart(busiest_hours)
+    return busiest_hours
 
-
-# Function for message count by month
 def message_count_by_month(selected_participant,df):
     filtered_df = df[df['user'] == selected_participant] if selected_participant != 'Overall' else df
     message_count_per_month = filtered_df.groupby(['year', 'month']).count()['message'].reset_index()
     st.dataframe(message_count_per_month)
 
-
-# Function for top emojis used
 def top_emojis_used(selected_participant,df):
     filtered_df = df[df['user'] == selected_participant] if selected_participant != 'Overall' else df
     emojis = [c for message in filtered_df['message'] for c in message if c in emoji.EMOJI_DATA]
@@ -710,8 +706,6 @@ def top_emojis_used(selected_participant,df):
     st.write(f"Top Emojis Used by {selected_participant}: {top_emojis}")
     return top_emojis
 
-
-# Function for greeting and farewell analysis
 def greeting_farewell_analysis(selected_participant, df):
     filtered_df = df[df['user'] == selected_participant] if selected_participant != 'Overall' else df
 
@@ -733,30 +727,19 @@ def greeting_farewell_analysis(selected_participant, df):
     fig = go.Figure(data=[go.Pie(labels=labels, values=sizes, hole=.3)])
     fig.update_layout(title=f"Greeting, Farewell, and Birthday Wishes Analysis by {selected_participant}")
 
-    greetings = filtered_df['message'].apply(lambda msg: 'hello' in msg.lower() or 'hi' in msg.lower()).sum()
-    farewells = filtered_df['message'].apply(lambda msg: 'goodbye' in msg.lower() or 'bye' in msg.lower()).sum()
-    birthdays = filtered_df['message'].apply(
-        lambda msg: 'happy birthday' in msg.lower() or 'happiest birthday' in msg.lower()).sum()
-
     st.write(f"Total Greetings by {selected_participant}: {greetings}")
     st.write(f"Total Farewells by {selected_participant}: {farewells}")
     st.write(f"Total Birthday Wishes by {selected_participant}: {birthdays}")
 
-    fig.write_image("exports/charts/greetings.png")
+    safe_write_image(fig, "exports/charts/greetings.png")
     return fig
 
-
-# Function for topic analysis using LDA
 with open('stop_hinglish.txt', 'r') as f:
     stop_words = set(f.read().splitlines())
 
-# Function for topic analysis using LDA with heuristic topic naming
-# Load the stop words from the file
 with open('stop_hinglish.txt', 'r') as f:
     stop_words = set(f.read().splitlines())
 
-
-#Only highest Reply time user display
 def longest_reply_user(df):
     # Ordinal encoders will encode each user with its own number
     user_encoder = OrdinalEncoder()
@@ -790,9 +773,6 @@ def longest_reply_user(df):
     max_reply_user = max_reply_times.idxmax()
     max_reply_time = max_reply_times.max()
     return max_reply_user, max_reply_time
-
-
-#additional info about reply
 
 def longest_reply_user2(df):
 
@@ -839,8 +819,6 @@ def longest_reply_user2(df):
     reply = df.shift(1).loc[max_reply_message_index, 'message']
 
     return max_reply_user, max_reply_time_minutes, max_reply_message,reply
-
-
 
 def top5_late_replies(df):
     # Filter out messages containing the specified strings
@@ -901,7 +879,6 @@ def top5_late_replies(df):
 
     return users, reply_times, max_reply_messages, replies
 
-
 def top_texts_late_replies(df):
     # Filter out messages containing the specified strings
     omitted_strings = ["image omitted", "media omitted", "video omitted"]
@@ -959,12 +936,9 @@ def top_texts_late_replies(df):
         max_reply_messages.append(max_reply_message)
         replies.append(reply)
 
+
     return users, reply_times, max_reply_messages, replies
 
-
-
-
-# shows everyone's reply time and also plots graph
 def show_average_reply_time(df):
     """
     Enhanced visualization of reply times with user comparisons
@@ -1118,8 +1092,6 @@ def show_average_reply_time(df):
     
     return fig
 
-
-
 def _create_wide_area_fig(df : pd.DataFrame, legend : bool = True):
     fig, ax = plt.subplots(figsize=(12,5))
     df.plot(
@@ -1134,7 +1106,6 @@ def _create_wide_area_fig(df : pd.DataFrame, legend : bool = True):
         ax.legend(df['user'])
     return fig
 
-
 def create_narrow_pie_fig(df : pd.DataFrame):
     narrow_figsize = (6, 5)
     cmap = plt.get_cmap('viridis')
@@ -1148,7 +1119,6 @@ def create_narrow_pie_fig(df : pd.DataFrame):
     ax.set_ylabel('')
     return fig
 
-
 def message_count_aggregated_graph(df):
     subject_df = df.groupby('user').count()['message'].sort_values(ascending=False)
     most_messages_winner = subject_df.index[subject_df.argmax()]
@@ -1158,10 +1128,9 @@ def message_count_aggregated_graph(df):
     fig = go.Figure(data=[go.Pie(labels=subject_df.index, values=subject_df.values)])
     fig.update_layout(title="Message Count Aggregated by User")
 
-    fig.write_image("exports/charts/most_message_winner.png")
+    safe_write_image(fig, "exports/charts/most_message_winner.png")
 
     return fig, most_messages_winner
-
 
 def conversation_starter_graph(df):
     subject_df = df[df['Conv change']].groupby('user').count()['Reply Time']
@@ -1171,7 +1140,7 @@ def conversation_starter_graph(df):
     fig.update_layout(title="Conversation Starter Count by User")
 
     most_messages_winner = subject_df.index[subject_df.argmax()]
-    fig.write_image("exports/charts/conversation_starter_winner.png")
+    safe_write_image(fig, "exports/charts/conversation_starter_winner.png")
     return fig, most_messages_winner
 
 def conversation_size_aggregated_graph( df):
@@ -1186,7 +1155,7 @@ def conversation_size_aggregated_graph( df):
     fig.update_layout(title="Conversation Size Aggregated over Time",
                       xaxis_title="Date",
                       yaxis_title="Average Conversation Size")
-    fig.write_image("exports/charts/average_conversation_size.png")
+    safe_write_image(fig, "exports/charts/average_conversation_size.png")
     return fig
 
 def most_idle_date_time(df):
@@ -1237,13 +1206,6 @@ def median_delay_between_conversations(user,df):
 
         return median_delay_per_user
     return  None
-
-
-
-
-
-
-import plotly.graph_objects as go
 
 def analyze_and_plot_sentiment(selected_user, df):
     """
@@ -1439,8 +1401,6 @@ def calculate_sentiment_percentage(selected_users, df):
 
     return user_sentiment_percentages, most_positive_user, most_negative_user
 
-
-
 def create_messages_per_week_graph(df: pd.DataFrame):
     # Convert 'Date' column to datetime if it's not already
     df['date'] = pd.to_datetime(df['date'])
@@ -1459,7 +1419,6 @@ def create_average_wpm_graph( df : pd.DataFrame):
     date_avg_df = df[other_y_columns].resample('W').mean()
     fig = _create_wide_area_fig(date_avg_df)
     return fig
-
 
 def calculate_monthly_sentiment_trend(df):
     # Make a copy of the DataFrame to avoid modifying the original DataFrame
@@ -1501,19 +1460,32 @@ def calculate_monthly_sentiment_trend(df):
 
     return fig
 
-
-
-
 def create_pdf(figs):
-    c = canvas.Canvas("plots_report.pdf", pagesize=letter)
-    c.drawString(100, 750, "Whatsapp Chat Analysis Report")  # Title
+    try:
+        c = canvas.Canvas("plots_report.pdf", pagesize=letter)
+        c.drawString(100, 750, "Whatsapp Chat Analysis Report")  # Title
 
-    # Insert plots into PDF
-    for fig in figs:
-        c.drawImage(fig, 90, 200, width=400, height=500)
-        c.showPage()  # Start a new page for each plot
+        # Insert plots into PDF
+        for fig in figs:
+            try:
+                if os.path.exists(fig):
+                    c.drawImage(fig, 90, 200, width=400, height=500)
+                else:
+                    # If image doesn't exist, add a placeholder text
+                    c.drawString(100, 400, f"Chart not available: {os.path.basename(fig)}")
+                    c.drawString(100, 380, "This chart could not be saved due to deployment environment limitations.")
+                c.showPage()  # Start a new page for each plot
+            except Exception as e:
+                # If there's an error with one image, continue with others
+                c.drawString(100, 400, f"Error loading chart: {os.path.basename(fig)}")
+                c.drawString(100, 380, f"Error: {str(e)}")
+                c.showPage()
 
-    c.save()  # Save PDF
+        c.save()  # Save PDF
+        return True
+    except Exception as e:
+        print(f"Error creating PDF: {str(e)}")
+        return False
 
 def export(selected_user,df):
 
@@ -1534,9 +1506,12 @@ def export(selected_user,df):
     # fig16 = create_average_wpm_graph(df)
     # fig17 = calculate_monthly_sentiment_trend(df)
 
-    create_pdf(["exports/charts/average_conversation_size.png", "exports/charts/average_reply_time.png", "exports/charts/commonwords.png", "exports/charts/conversation_starter_winner.png","exports/charts/emojis.png","exports/charts/fig1.png","exports/charts/greetings.png","exports/charts/month_activity.png","exports/charts/most_message_winner.png","exports/charts/negative.png","exports/charts/positive.png","exports/charts/week_activity.png"])
+    success = create_pdf(["exports/charts/average_conversation_size.png", "exports/charts/average_reply_time.png", "exports/charts/commonwords.png", "exports/charts/conversation_starter_winner.png","exports/charts/emojis.png","exports/charts/fig1.png","exports/charts/greetings.png","exports/charts/month_activity.png","exports/charts/most_message_winner.png","exports/charts/negative.png","exports/charts/positive.png","exports/charts/week_activity.png"])
 
-    st.toast('Data Exported successfully! Now you can download :)')
+    if success:
+        st.toast('Data Exported successfully! Now you can download :)')
+    else:
+        st.toast('Export completed with some limitations. Some charts may not be included in the PDF due to deployment environment constraints.')
 
 def calculate_average_late_reply_time(df, threshold_hours=48):
     """
@@ -1653,7 +1628,7 @@ def calculate_average_late_reply_time(df, threshold_hours=48):
         font=dict(color="red")
     )
     
-    fig.write_image("exports/charts/average_late_reply_time.png")
+    safe_write_image(fig, "exports/charts/average_late_reply_time.png")
     return fig, avg_late_reply_times, overall_avg
 
 def analyze_conversation_momentum(df):
@@ -3175,38 +3150,25 @@ def predict_future_activity(df, forecast_months=3):
     # Group by day to get message counts
     daily_counts = df.groupby(df['date'].dt.date).size().reset_index()
     daily_counts.columns = ['ds', 'y']
-    
-    # Convert date to datetime
+
     daily_counts['ds'] = pd.to_datetime(daily_counts['ds'])
     
-    # Create and fit the model
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=False,
-        seasonality_mode='multiplicative'  # Usually better for message data
+        seasonality_mode='multiplicative'  # beacause it is usually better for message data
     )
-    
-    # Add special seasonality for chat patterns if needed
     model.add_seasonality(name='monthly', period=30.5, fourier_order=5)
-    
-    # Fit the model
     model.fit(daily_counts)
-    
-    # Create future dataframe for predictions
-    future_period = forecast_months * 30  # Approximate days in forecast months
+    future_period = forecast_months * 30  
     future = model.make_future_dataframe(periods=future_period)
-    
-    # Make predictions
     forecast = model.predict(future)
-    
-    # Get the last date of historical data
     last_date = daily_counts['ds'].max()
-    
+
     # Convert to plotly for Streamlit
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-    
     # Create plotly figure
     plotly_fig = make_subplots(specs=[[{"secondary_y": True}]])
     
@@ -3408,4 +3370,20 @@ def generate_forecast_conclusions(historical_data, forecast, forecast_months):
     }
     
     return conclusions
+
+def safe_write_image(fig, filepath, format='png'):
+    """
+    Safely write image to file, with fallback if Chrome/Kaleido is not available
+    """
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        fig.write_image(filepath, format=format)
+        return True
+    except Exception as e:
+        # Log the error but don't crash the app
+        print(f"Warning: Could not save image to {filepath}: {str(e)}")
+        print("This is likely due to Chrome not being installed in the deployment environment.")
+        print("The chart will still be displayed in the app, but won't be saved to file.")
+        return False
 

@@ -102,10 +102,10 @@ def preprocess(data):
 
     df['period'] = period
 
-
     # Add logic for finding replies and calculating times
     df = add_reply_logic(df)
-
+    
+    
     # Calculate times based on replies
     reply_times, indices = calculate_times_on_trues(df, 'Is Reply')
     reply_times_df_list = []

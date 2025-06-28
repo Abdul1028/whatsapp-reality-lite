@@ -7,10 +7,16 @@ datetime
 plotly
 plotly-express
 reportlab
-kaleido
+# kaleido  # Commented out - requires Chrome which may not be available in all deployment environments
 sentence-transformers>=2.2.2
 textblob
 urlextract
 wordcloud
 emoji
 prophet
+
+# Note: If you need to save images to files, you'll need to install Chrome in your deployment environment
+# or use alternative approaches like:
+# - Using plotly's built-in download functionality
+# - Converting plots to base64 strings for embedding
+# - Using different image formats that don't require Chrome
